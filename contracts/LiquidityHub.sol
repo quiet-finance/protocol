@@ -26,11 +26,6 @@ contract LiquidityHub is LiquidityAllocator {
     uint256 nextRedeemIdx;
     mapping(uint256 => RedeemRequest) redeemQueue;
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
     function issue(address to, uint256 amount) external {
         USDC.transferFrom(msg.sender, address(this), amount);
         qUSD.mint(to, amount);

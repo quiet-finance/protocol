@@ -4,6 +4,7 @@ pragma solidity ^0.8.27;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IStrategy} from "./interfaces/IStrategy.sol";
 
@@ -14,12 +15,12 @@ enum AllocateAction {
 }
 
 struct AllocateInstruction {
-    address strategy;
+    uint256 strategyOrChain;
     AllocateAction action;
     uint256 amount;
 }
 
-contract LiquidityAllocator is OwnableUpgradeable {
+abstract contract LiquidityAllocator is OwnableUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     EnumerableSet.AddressSet private _strategies;
@@ -31,10 +32,12 @@ contract LiquidityAllocator is OwnableUpgradeable {
 
     function addStrategy(address strategy) external onlyOwner {
         _strategies.add(strategy);
+        _approveAssets(strategy);
     }
 
     function removeStrategy(address strategy) external onlyOwner {
         _strategies.remove(strategy);
+        _revokeAllowance(strategy);
     }
 
     function allocate(
@@ -43,14 +46,16 @@ contract LiquidityAllocator is OwnableUpgradeable {
         uint256 n = instructions.length;
         for (uint256 idx = 0; idx < n; idx++) {
             AllocateInstruction memory i = instructions[idx];
-            require(_strategies.contains(i.strategy));
 
-            if (i.action == AllocateAction.DEPOSIT) {
-                IStrategy(i.strategy).deposit(i.amount);
-            } else if (i.action == AllocateAction.WITHDRAW) {
-                IStrategy(i.strategy).withdraw(i.amount);
-            } else if (i.action == AllocateAction.BRIDGE) {
-                revert("Not implemented");
+            if (i.action == AllocateAction.BRIDGE) {
+                _bridgeFunds(i.strategyOrChain, i.amount);
+            } else {
+                address strategy = address(uint160(i.strategyOrChain));
+                require(_strategies.contains(strategy));
+                if (i.action == AllocateAction.DEPOSIT)
+                    IStrategy(strategy).deposit(i.amount);
+                else if (i.action == AllocateAction.WITHDRAW)
+                    IStrategy(strategy).withdraw(i.amount);
             }
         }
     }
@@ -65,4 +70,10 @@ contract LiquidityAllocator is OwnableUpgradeable {
             nav_ += IStrategy(_strategies.at(i)).nav();
         }
     }
+
+    function _bridgeFunds(uint256 chainId, uint256 amount) internal virtual;
+
+    function _approveAssets(address strategy) internal virtual;
+
+    function _revokeAllowance(address strategy) internal virtual;
 }

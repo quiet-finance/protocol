@@ -56,4 +56,16 @@ contract LiquidityHub is LiquidityAllocator {
         redeemRequest.isProcessed = true;
         USDC.transfer(to, redeemRequest.amount);
     }
+
+    function _bridgeFunds(uint256, uint256) internal override {
+        revert("Not implemented");
+    }
+
+    function _approveAssets(address strategy) internal override {
+        USDC.approve(strategy, type(uint256).max);
+    }
+
+    function _revokeAllowance(address strategy) internal override {
+        USDC.approve(strategy, 0);
+    }
 }

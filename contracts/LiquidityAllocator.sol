@@ -7,6 +7,18 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 import {IStrategy} from "./interfaces/IStrategy.sol";
 
+enum AllocateAction {
+    DEPOSIT,
+    WITHDRAW,
+    BRIDGE
+}
+
+struct AllocateInstruction {
+    address strategy;
+    AllocateAction action;
+    uint256 amount;
+}
+
 contract LiquidityAllocator is OwnableUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -19,12 +31,28 @@ contract LiquidityAllocator is OwnableUpgradeable {
 
     function addStrategy(address strategy) external onlyOwner {
         _strategies.add(strategy);
-        IStrategy(strategy).acceptOwnership();
     }
 
     function removeStrategy(address strategy) external onlyOwner {
-        IStrategy(strategy).transferOwnership(owner());
         _strategies.remove(strategy);
+    }
+
+    function allocate(
+        AllocateInstruction[] calldata instructions
+    ) external onlyOwner {
+        uint256 n = instructions.length;
+        for (uint256 idx = 0; idx < n; idx++) {
+            AllocateInstruction memory i = instructions[idx];
+            require(_strategies.contains(i.strategy));
+
+            if (i.action == AllocateAction.DEPOSIT) {
+                IStrategy(i.strategy).deposit(i.amount);
+            } else if (i.action == AllocateAction.WITHDRAW) {
+                IStrategy(i.strategy).withdraw(i.amount);
+            } else if (i.action == AllocateAction.BRIDGE) {
+                revert("Not implemented");
+            }
+        }
     }
 
     function strategies() external view returns (address[] memory) {

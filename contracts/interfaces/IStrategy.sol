@@ -2,12 +2,10 @@
 // Compatible with OpenZeppelin Contracts ^5.4.0
 pragma solidity ^0.8.27;
 
-interface IOwnable2Step {
-    function transferOwnership(address newOwner) external;
+interface IStrategy {
+    function deposit(uint256 amount) external;
 
-    function acceptOwnership() external;
-}
+    function withdraw(uint256 amount) external;
 
-interface IStrategy is IOwnable2Step {
     function nav() external view returns (uint256);
 }

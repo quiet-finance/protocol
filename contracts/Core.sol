@@ -13,7 +13,7 @@ struct RedeemRequest {
     bool isProcessed;
 }
 
-contract LiquidityHubNode is LiquidityNode {
+contract Core is LiquidityNode {
     using BpsMath for uint256;
 
     IqUSD immutable qUSD;

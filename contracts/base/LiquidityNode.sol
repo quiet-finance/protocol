@@ -9,7 +9,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IStrategy} from "../interfaces/IStrategy.sol";
 import {ITotalAssetsProvider} from "../interfaces/ITotalAssetsProvider.sol";
-import {ILiquidityMover} from "../interfaces/ILiquidityMover.sol";
+import {ILiquidityEdge} from "../interfaces/ILiquidityEdge.sol";
 
 abstract contract LiquidityNode is
     AccessManagedUpgradeable,
@@ -19,7 +19,7 @@ abstract contract LiquidityNode is
     using SafeERC20 for IERC20;
 
     EnumerableSet.AddressSet private _strategies;
-    EnumerableSet.AddressSet private _liquidityMovers;
+    EnumerableSet.AddressSet private _liquidityEdges;
 
     /// @notice We don't validate strategy, because of not whitelisted strategy hasn't allowance
     function enter(
@@ -48,23 +48,23 @@ abstract contract LiquidityNode is
         require(assetsDelta <= maxAssetsDelta);
     }
 
-    function moveLiquidity(
-        ILiquidityMover liquidityMover,
+    function transferLiquidity(
+        ILiquidityEdge liquidityEdge,
         uint256 amount,
         uint256 chainId,
         bytes calldata data
     ) external restricted {
-        liquidityMover.move(address(asset()), amount, chainId, data);
+        liquidityEdge.transfer(address(asset()), amount, chainId, data);
     }
 
-    function enableLiquidityMover(address liquidityMover) external restricted {
-        _liquidityMovers.add(liquidityMover);
-        asset().forceApprove(liquidityMover, type(uint256).max);
+    function enableLiquidityEdge(address liquidityEdge) external restricted {
+        _liquidityEdges.add(liquidityEdge);
+        asset().forceApprove(liquidityEdge, type(uint256).max);
     }
 
-    function disableLiquidityMover(address liquidityMover) external restricted {
-        _liquidityMovers.remove(liquidityMover);
-        asset().forceApprove(liquidityMover, 0);
+    function disableLiquidityEdge(address liquidityEdge) external restricted {
+        _liquidityEdges.remove(liquidityEdge);
+        asset().forceApprove(liquidityEdge, 0);
     }
 
     function addStrategy(address strategy) external restricted {
@@ -83,8 +83,8 @@ abstract contract LiquidityNode is
         return _strategies.values();
     }
 
-    function liquidityMovers() external view returns (address[] memory) {
-        return _liquidityMovers.values();
+    function liquidityEdges() external view returns (address[] memory) {
+        return _liquidityEdges.values();
     }
 
     function totalAssets() external view virtual returns (uint256 assets) {

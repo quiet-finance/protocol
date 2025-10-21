@@ -38,14 +38,14 @@ abstract contract LiquidityNode is
     function exit(
         IStrategy strategy,
         uint256 amount,
-        uint256 minBalanceDelta,
+        uint256 maxAssetsDelta,
         bytes calldata data
-    ) external restricted returns (uint256 balanceDelta) {
-        uint256 balanceBefore = asset().balanceOf(address(this));
+    ) external restricted returns (uint256 assetsDelta) {
+        uint256 assetsBefore = strategy.totalAssets();
         strategy.withdraw(amount, data);
 
-        balanceDelta = asset().balanceOf(address(this)) - balanceBefore;
-        require(balanceDelta >= minBalanceDelta);
+        assetsDelta = strategy.totalAssets() - assetsBefore;
+        require(assetsDelta <= maxAssetsDelta);
     }
 
     function moveLiquidity(

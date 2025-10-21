@@ -1,5 +1,5 @@
 {
-  "name": "protocol",
+  "name": "@quiet-finance/protocol",
   "version": "1.0.0",
   "type": "module",
   "devDependencies": {

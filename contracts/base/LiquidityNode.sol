@@ -8,13 +8,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IStrategy} from "../interfaces/IStrategy.sol";
-import {ITotalAssetsProvider} from "../interfaces/ITotalAssetsProvider.sol";
+import {INavProvider} from "../interfaces/INavProvider.sol";
 import {ILiquidityEdge} from "../interfaces/ILiquidityEdge.sol";
 
-abstract contract LiquidityNode is
-    AccessManagedUpgradeable,
-    ITotalAssetsProvider
-{
+abstract contract LiquidityNode is AccessManagedUpgradeable, INavProvider {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
@@ -25,14 +22,14 @@ abstract contract LiquidityNode is
     function enter(
         IStrategy strategy,
         uint256 amount,
-        uint256 minAssetsDelta,
+        uint256 minNavDelta,
         bytes calldata data
-    ) external restricted returns (uint256 assetsDelta) {
-        uint256 assetsBefore = strategy.totalAssets();
+    ) external restricted returns (uint256 navDelta) {
+        uint256 navBefore = strategy.nav();
         strategy.deposit(amount, data);
 
-        assetsDelta = strategy.totalAssets() - assetsBefore;
-        require(assetsDelta >= minAssetsDelta);
+        navDelta = strategy.nav() - navBefore;
+        require(navDelta >= minNavDelta);
     }
 
     function exit(
@@ -40,12 +37,12 @@ abstract contract LiquidityNode is
         uint256 amount,
         uint256 maxAssetsDelta,
         bytes calldata data
-    ) external restricted returns (uint256 assetsDelta) {
-        uint256 assetsBefore = strategy.totalAssets();
+    ) external restricted returns (uint256 navDelta) {
+        uint256 navBefore = strategy.nav();
         strategy.withdraw(amount, data);
 
-        assetsDelta = strategy.totalAssets() - assetsBefore;
-        require(assetsDelta <= maxAssetsDelta);
+        navDelta = navBefore - strategy.nav();
+        require(navDelta <= maxAssetsDelta);
     }
 
     function transferLiquidity(
@@ -54,7 +51,7 @@ abstract contract LiquidityNode is
         uint256 chainId,
         bytes calldata data
     ) external restricted {
-        liquidityEdge.transfer(address(asset()), amount, chainId, data);
+        liquidityEdge.transfer(amount, chainId, data);
     }
 
     function enableLiquidityEdge(address liquidityEdge) external restricted {
@@ -68,12 +65,14 @@ abstract contract LiquidityNode is
     }
 
     function addStrategy(address strategy) external restricted {
+        require(IStrategy(strategy).asset() == asset());
+
         _strategies.add(strategy);
         asset().forceApprove(strategy, type(uint256).max);
     }
 
     function removeStrategy(address strategy) external restricted {
-        require(IStrategy(strategy).totalAssets() == 0);
+        require(IStrategy(strategy).nav() == 0);
 
         _strategies.remove(strategy);
         asset().forceApprove(strategy, 0);
@@ -87,12 +86,23 @@ abstract contract LiquidityNode is
         return _liquidityEdges.values();
     }
 
-    function totalAssets() external view virtual returns (uint256 assets) {
+    function nav() external view returns (uint256) {
+        return allocatedNav() + unallocatedNav();
+    }
+
+    function allocatedNav()
+        public
+        view
+        virtual
+        returns (uint256 strategiesNav)
+    {
         uint256 n = _strategies.length();
         for (uint256 i = 0; i < n; i++) {
-            assets += IStrategy(_strategies.at(i)).totalAssets();
+            strategiesNav += IStrategy(_strategies.at(i)).nav();
         }
     }
 
     function asset() public view virtual returns (IERC20);
+
+    function unallocatedNav() public view virtual returns (uint256);
 }

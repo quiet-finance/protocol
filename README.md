@@ -34,3 +34,34 @@
 - When __rebalancer__ want to add funds to strategy, it calls `LiquidityNode.enter`
 - When __rebalancer__ want to remove funds from strategy, it calls `LiquidityNode.exit`
 - When __rebalancer__ want to move funds to another `LiquidityNode`, it calls `LiquidityNode.transferLiquidity`
+
+
+## Accounting
+All accounting in Quiet Finance conducted in USDC. `Strategy` and `LiquidityNode` implements `nav()` function, which returns amount of USDC, which sits in contract.
+
+`Strategy` nav examples:
+- USDC Ethereum AAVE nav - amount of deposited USDC
+- USDT Ethereum Morpho nav - amount of deposited USDT * USDC/USDT price
+
+`LiquidityNode` nav it is sum of all whitelisted `Strategy.nav` + unallocated asstets on balance.
+
+## Access control
+All Quiet Finance contracts uses [AccessManager OpenZeppelin concept](https://docs.openzeppelin.com/contracts/5.x/access-control#access-management), its allow to granular control for access to every function of system.
+![AccessManager scheme](https://docs.openzeppelin.com/access-manager.svg)
+
+
+## Strategy implementation
+As stated above, each `Strategy` should implements one atomic yield source. To achieve it with saving universal composability, we allows pass inside functions any arbitrary data, which helps strategy decide, what it should do.
+
+Example:
+```solidity
+import {Strategy} from "@quiet-finance/protocol/contracts/base/Strategy.sol";
+
+contract Strategy {
+   function _deposit(uint256 amount, bytes calldata data) internal {
+      (address router, bytes memory swapDetails) = abi.decode(data, (address, bytes));
+      IRouter(router).swap(swapDetails);
+      ... 
+   }
+}
+```

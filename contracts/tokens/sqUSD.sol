@@ -8,7 +8,7 @@ import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC2
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
-import {ITotalAssetsProvider} from "../interfaces/ITotalAssetsProvider.sol";
+import {INavProvider} from "../interfaces/INavProvider.sol";
 
 contract sqUSD is
     Initializable,
@@ -45,7 +45,7 @@ contract sqUSD is
     }
 
     function totalAssets() public view virtual override returns (uint256) {
-        return ITotalAssetsProvider(navOracle).totalAssets();
+        return INavProvider(navOracle).nav();
     }
 
     function decimals()

@@ -92,4 +92,8 @@ contract Core is LiquidityNode {
     function asset() public view override returns (IERC20) {
         return USDC;
     }
+
+    function unallocatedNav() public view override returns (uint256) {
+        return USDC.balanceOf(address(this));
+    }
 }

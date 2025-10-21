@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.4.0
 pragma solidity ^0.8.27;
 
-interface IStrategy {
-    function deposit(uint256 amount) external;
+import {ITotalAssetsProvider} from "./ITotalAssetsProvider.sol";
 
-    function withdraw(uint256 amount) external;
+interface IStrategy is ITotalAssetsProvider {
+    function deposit(uint256 amount, bytes calldata data) external;
 
-    function nav() external view returns (uint256);
+    function withdraw(uint256 amount, bytes calldata data) external;
 }

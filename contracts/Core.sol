@@ -27,6 +27,8 @@ contract Core is LiquidityNode {
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(IqUSD qUSD_, IERC20 USDC_) {
+        _disableInitializers();
+
         qUSD = qUSD_;
         USDC = USDC_;
     }

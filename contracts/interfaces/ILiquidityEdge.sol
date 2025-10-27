@@ -6,5 +6,5 @@ interface ILiquidityEdge {
         uint256 amount,
         uint256 chainId,
         bytes calldata data
-    ) external;
+    ) external payable;
 }

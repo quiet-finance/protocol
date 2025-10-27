@@ -8,10 +8,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IStrategy} from "../interfaces/IStrategy.sol";
-import {INavProvider} from "../interfaces/INavProvider.sol";
 import {ILiquidityEdge} from "../interfaces/ILiquidityEdge.sol";
+import {ILiquidityNode} from "../interfaces/ILiquidityNode.sol";
 
-abstract contract LiquidityNode is AccessManagedUpgradeable, INavProvider {
+abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
@@ -29,20 +29,22 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, INavProvider {
         strategy.deposit(amount, data);
 
         navDelta = strategy.nav() - navBefore;
-        require(navDelta >= minNavDelta);
+        require(navDelta >= minNavDelta, NavDeltaTooLow(navDelta));
+        emit Enter(strategy, amount, navDelta);
     }
 
     function exit(
         IStrategy strategy,
         uint256 amount,
-        uint256 maxAssetsDelta,
+        uint256 maxNavDelta,
         bytes calldata data
     ) external restricted returns (uint256 navDelta) {
         uint256 navBefore = strategy.nav();
         strategy.withdraw(amount, data);
 
         navDelta = navBefore - strategy.nav();
-        require(navDelta <= maxAssetsDelta);
+        require(navDelta <= maxNavDelta, NavDeltaTooHigh(navDelta));
+        emit Exit(strategy, amount, navDelta);
     }
 
     function transferLiquidity(
@@ -54,28 +56,32 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, INavProvider {
         liquidityEdge.transfer(amount, chainId, data);
     }
 
-    function enableLiquidityEdge(address liquidityEdge) external restricted {
+    function addLiquidityEdge(address liquidityEdge) external restricted {
         _liquidityEdges.add(liquidityEdge);
         asset().forceApprove(liquidityEdge, type(uint256).max);
+        emit LiquidityEdgeAdded(liquidityEdge);
     }
 
-    function disableLiquidityEdge(address liquidityEdge) external restricted {
+    function removeLiquidityEdge(address liquidityEdge) external restricted {
         _liquidityEdges.remove(liquidityEdge);
         asset().forceApprove(liquidityEdge, 0);
+        emit LiquidityEdgeRemoved(liquidityEdge);
     }
 
     function addStrategy(address strategy) external restricted {
-        require(IStrategy(strategy).asset() == asset());
+        require(IStrategy(strategy).asset() == asset(), UnsupportedStrategy());
 
         _strategies.add(strategy);
         asset().forceApprove(strategy, type(uint256).max);
+        emit StrategyAdded(strategy);
     }
 
     function removeStrategy(address strategy) external restricted {
-        require(IStrategy(strategy).nav() == 0);
+        require(IStrategy(strategy).nav() == 0, NavShouldBeZero());
 
         _strategies.remove(strategy);
         asset().forceApprove(strategy, 0);
+        emit StrategyAdded(strategy);
     }
 
     function strategies() external view returns (address[] memory) {

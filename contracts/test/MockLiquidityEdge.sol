@@ -14,4 +14,10 @@ contract MockLiquidityEdge is ILiquidityEdge {
         (IERC20 asset, address to) = abi.decode(data, (IERC20, address));
         asset.transferFrom(msg.sender, to, amount);
     }
+
+    function quoteTransfer(
+        uint256 amount,
+        uint256 chainId,
+        bytes calldata data
+    ) external view returns (uint256) {}
 }

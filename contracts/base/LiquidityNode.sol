@@ -24,7 +24,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
         uint256 amount,
         uint256 minNavDelta,
         bytes calldata data
-    ) external restricted returns (uint256 navDelta) {
+    ) external payable restricted returns (uint256 navDelta) {
         uint256 navBefore = strategy.nav();
         strategy.deposit(amount, data);
 
@@ -38,7 +38,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
         uint256 amount,
         uint256 maxNavDelta,
         bytes calldata data
-    ) external restricted returns (uint256 navDelta) {
+    ) external payable restricted returns (uint256 navDelta) {
         uint256 navBefore = strategy.nav();
         strategy.withdraw(amount, data);
 
@@ -49,11 +49,12 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
 
     function transferLiquidity(
         ILiquidityEdge liquidityEdge,
+        uint256 nativeAmount,
         uint256 amount,
         uint256 chainId,
         bytes calldata data
-    ) external restricted {
-        liquidityEdge.transfer(amount, chainId, data);
+    ) external payable restricted {
+        liquidityEdge.transfer{value: nativeAmount}(amount, chainId, data);
     }
 
     function addLiquidityEdge(address liquidityEdge) external restricted {

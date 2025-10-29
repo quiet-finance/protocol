@@ -8,18 +8,12 @@ import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC2
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
-import {INavProvider} from "../interfaces/INavProvider.sol";
-
 contract sqUSD is
     Initializable,
     ERC4626Upgradeable,
     ERC20PermitUpgradeable,
     AccessManagedUpgradeable
 {
-    event NavOracleChanged(address oldOracle, address newOracle);
-
-    address public navOracle;
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -27,25 +21,12 @@ contract sqUSD is
 
     function initialize(
         IERC20 asset,
-        address initialAuthority,
-        address navOracle_
+        address initialAuthority
     ) public initializer {
         __ERC4626_init(asset);
         __ERC20_init("sQuietUSD", "sqUSD");
         __ERC20Permit_init("sQuietUSD");
         __AccessManaged_init(initialAuthority);
-
-        navOracle = navOracle_;
-        emit NavOracleChanged(address(0), address(navOracle_));
-    }
-
-    function changeNavOracle(address navOracle_) external restricted {
-        emit NavOracleChanged(navOracle, navOracle_);
-        navOracle = navOracle_;
-    }
-
-    function totalAssets() public view virtual override returns (uint256) {
-        return INavProvider(navOracle).nav();
     }
 
     function decimals()
@@ -55,6 +36,6 @@ contract sqUSD is
         override(ERC4626Upgradeable, ERC20Upgradeable)
         returns (uint8)
     {
-        return super.decimals();
+        return ERC4626Upgradeable.decimals();
     }
 }

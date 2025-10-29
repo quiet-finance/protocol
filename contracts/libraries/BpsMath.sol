@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 library BpsMath {
     uint256 constant BPS = 10_000;
 
-    function checkIsBps(uint256 bps) internal pure {
+    function validateBps(uint256 bps) internal pure {
         require(bps <= BPS);
     }
 

@@ -2,8 +2,9 @@
 pragma solidity ^0.8.27;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 
-import {LiquidityNode} from "./base/LiquidityNode.sol";
 import {BpsMath} from "./libraries/BpsMath.sol";
 import {IqUSD} from "./interfaces/IqUSD.sol";
 
@@ -13,13 +14,21 @@ struct RedeemRequest {
     bool isProcessed;
 }
 
-contract Core is LiquidityNode {
+contract Core is AccessManagedUpgradeable {
     using BpsMath for uint256;
 
     IqUSD immutable qUSD;
+    IERC20 immutable sqUSD;
     IERC20 immutable USDC;
+
+    // Treasury params
+    uint256 successFeeBps;
     address treasury;
 
+    //
+    uint256 storedNav;
+
+    // Redeem params
     uint256 instantRedeemFeeBps;
     uint256 nextRedeemId;
     uint256 maxRedeemableId;
@@ -91,11 +100,25 @@ contract Core is LiquidityNode {
         USDC.transfer(to, redeemRequest.amount);
     }
 
-    function asset() public view override returns (IERC20) {
-        return USDC;
-    }
+    function finishRebalance(
+        uint256 nav,
+        int256 assetsDelta
+    ) external restricted {
+        if (nav > storedNav) {
+            uint256 yield = nav - storedNav;
+            uint256 successFee = yield.bpsOf(successFeeBps);
+            qUSD.mint(treasury, successFee);
+            qUSD.mint(address(sqUSD), yield - successFee);
+        } else if (nav < storedNav) {
+            qUSD.burn(address(sqUSD), storedNav - nav);
+        }
 
-    function unallocatedNav() public view override returns (uint256) {
-        return USDC.balanceOf(address(this));
+        if (assetsDelta > 0) {
+            USDC.transfer(msg.sender, uint256(assetsDelta));
+            storedNav = nav + uint256(assetsDelta);
+        } else {
+            USDC.transferFrom(msg.sender, address(this), uint256(assetsDelta));
+            storedNav = nav + uint256(assetsDelta);
+        }
     }
 }

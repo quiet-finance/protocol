@@ -10,7 +10,7 @@
 - `Strategy` - Contract, which represents one atomic yield source (example: we deposit USDC to Aave Ethereum and get lending yield - it's strategy, USDT Ethereum deposit or USDC Base deposit it's another strategies).
 - `LiquidityNode` - Do only one thing: liquidity management. In Quiet Finance ther are multiple instances of this contract will be deployed - for another chains or another liquidity assets (example: contract for USDT on ethereum, contract for USDC on Base).
 - `LiquidityEdge` - Contract, which connects two `LiquidityNode` contracts (example: contract for USDC on Ethereum <> USDC on Base via CCTP, contract for USDC on Ethereum <> USDT on Ethereum). `LiquidityEdge` doesn't holds any liquidity, its just moved it from one edge to another.
-- `Core` - main contract for all user-ended scenarios. Containts logic for minting qUSD, instant qUSD redeem and normal qUSD redeem (via queue). `Core` contract is `LiquidityNode` (it's also manage liquidity).
+- `Core` - main contract for all user-ended scenarios. Containts logic for minting qUSD, instant qUSD redeem and normal qUSD redeem (via queue).
 
 ## Scenarios
 ### Deposit
@@ -44,6 +44,10 @@ All accounting in Quiet Finance conducted in USDC. `Strategy` and `LiquidityNode
 - USDT Ethereum Morpho nav - amount of deposited USDT * USDC/USDT price
 
 `LiquidityNode` nav it is sum of all whitelisted `Strategy.nav` + unallocated asstets on balance.
+```math
+NAV_{LiqiudityNode} = \sum_{}{NAV_{Strategy}}
+```
+Fund held by `Core` not included to NAV.
 
 ## Access control
 All Quiet Finance contracts uses [AccessManager OpenZeppelin concept](https://docs.openzeppelin.com/contracts/5.x/access-control#access-management), its allow to granular control for access to every function of system.
@@ -65,3 +69,21 @@ contract Strategy {
    }
 }
 ```
+
+## Rebalance
+When rebalance triggers, we do several steps:
+
+1. We do all manipulations with liquidity
+- deposit more liquidity into strategy (`LiquidityNode.enter`)
+- withdraw liquidity from strategy (`LiquidityNode.exit`)
+- move liquidity (`LiquidityNode.transferLiquidity`)
+2. After liquidity manipluation NAV reflects all yield and losses (from rebalance fees).
+3. We calculate `assetsDelta`
+- If `Core` holds too many USDC, `assetsDelta` should be positive (we want to deposit it into strategies)
+- If `Core` holds not enougth USDC, `assetsDelta` should be negative (we need reserves for instant withdrawal or we need process withdrawal queue)
+4. We run `finishRebalance` which:
+- Mints new `qUSD` to `sqUSD` balance (which reflects yield for `sqUSD` holders) if NAV increased
+- Burns `qUSD` from `sqUSD` balance (which reflects losses for `sqUSD` holders) if NAV decreased
+- Transfer assets to `LiquidityNode` if `assetsDelta` positive
+- Transfer assets from `LiquidityNode` if `assetsDelta` negative
+- Stores new NAV

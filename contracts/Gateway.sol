@@ -29,11 +29,12 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
     mapping(uint256 => RedeemRequestData) public redeemRequests;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IqUSD qUSD_, IERC20 USDC_) {
+    constructor(IERC20 USDC_, IqUSD qUSD_, address sqUSD_) {
         _disableInitializers();
 
-        qUSD = qUSD_;
         USDC = USDC_;
+        qUSD = qUSD_;
+        sqUSD = sqUSD_;
     }
 
     function initialize(

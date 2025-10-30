@@ -9,22 +9,9 @@ interface IGateway {
         bool isProcessed;
     }
 
-    event Issue(
-        address indexed issuer,
-        address indexed recipient,
-        uint256 amount
-    );
-    event InstantRedeem(
-        address indexed redeemer,
-        address indexed recipient,
-        uint256 amount
-    );
-    event RedeemRequest(
-        uint256 requestId,
-        address indexed redeemer,
-        address indexed recipient,
-        uint256 amount
-    );
+    event Issue(address indexed issuer, address indexed recipient, uint256 amount);
+    event InstantRedeem(address indexed redeemer, address indexed recipient, uint256 amount);
+    event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 amount);
     event Redeem(uint256 requestId, address indexed recipient, uint256 amount);
     event RebalanceFinished(uint256 navAfterRebalance, int256 assetsDelta);
     event TreasuryUpdated(address oldTreasury, address newTreasury);

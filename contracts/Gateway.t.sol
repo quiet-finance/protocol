@@ -51,16 +51,8 @@ contract LiquidityNodeTest is Test {
             )
         );
 
-        $.accessManager.grantAccess(
-            address(qusd),
-            address(gateway),
-            qUSD.mint.selector
-        );
-        $.accessManager.grantAccess(
-            address(qusd),
-            address(gateway),
-            qUSD.burn.selector
-        );
+        $.accessManager.grantAccess(address(qusd), address(gateway), qUSD.mint.selector);
+        $.accessManager.grantAccess(address(qusd), address(gateway), qUSD.burn.selector);
     }
 
     function test_issue() external {
@@ -72,16 +64,8 @@ contract LiquidityNodeTest is Test {
         uint256 userBalanceBefore = qusd.balanceOf(user);
         gateway.issue(user, issueAmount);
 
-        assertEq(
-            usdc.balanceOf(address(gateway)) - gatewayBalanceBefore,
-            issueAmount,
-            "gateway should take USDC"
-        );
-        assertEq(
-            qusd.balanceOf(user) - userBalanceBefore,
-            issueAmount,
-            "gateway should give qUSD"
-        );
+        assertEq(usdc.balanceOf(address(gateway)) - gatewayBalanceBefore, issueAmount, "gateway should take USDC");
+        assertEq(qusd.balanceOf(user) - userBalanceBefore, issueAmount, "gateway should give qUSD");
     }
 
     function test_redeemInstant() external {
@@ -96,11 +80,7 @@ contract LiquidityNodeTest is Test {
         uint256 treasuryBalanceBefore = usdc.balanceOf(gateway.treasury());
         gateway.redeemInstant(user, redeemAmount);
 
-        assertEq(
-            redeemerBalanceBefore - qusd.balanceOf(address(this)),
-            redeemAmount,
-            "gateway should burn qUSD"
-        );
+        assertEq(redeemerBalanceBefore - qusd.balanceOf(address(this)), redeemAmount, "gateway should burn qUSD");
         assertEq(
             gatewayBalanceBefore - usdc.balanceOf(address(gateway)),
             redeemAmount,
@@ -108,9 +88,7 @@ contract LiquidityNodeTest is Test {
         );
         assertEq(
             usdc.balanceOf(user) - userBalanceBefore,
-            redeemAmount -
-                (redeemAmount * gateway.instantRedeemFeeBps()) /
-                10000,
+            redeemAmount - (redeemAmount * gateway.instantRedeemFeeBps()) / 10000,
             "user should take redeemAmount of USDC (- fee)"
         );
         assertEq(

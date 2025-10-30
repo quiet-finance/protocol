@@ -8,10 +8,7 @@ library BpsMath {
         require(bps <= BPS);
     }
 
-    function bpsOf(
-        uint256 amount,
-        uint256 bps
-    ) internal pure returns (uint256) {
+    function bpsOf(uint256 amount, uint256 bps) internal pure returns (uint256) {
         return (amount * bps) / BPS;
     }
 }

@@ -13,11 +13,7 @@ contract qUSDTest is Test {
         qUSD qUSDImpl = new qUSD();
 
         token = qUSD(
-            $.proxy.deploy(
-                address(qUSDImpl),
-                address(this),
-                abi.encodeCall(qUSD.initialize, ($.accessManager.addr()))
-            )
+            $.proxy.deploy(address(qUSDImpl), address(this), abi.encodeCall(qUSD.initialize, ($.accessManager.addr())))
         );
     }
 

@@ -10,28 +10,18 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {IAccessManaged} from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
 // Cheat code address, 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D.
-address constant VM_ADDRESS = address(
-    uint160(uint256(keccak256("hevm cheat code")))
-);
+address constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
 
 Vm constant vm = Vm(VM_ADDRESS);
 
 library proxy {
-    function deploy(
-        address _logic,
-        address initialOwner,
-        bytes memory _data
-    ) internal returns (address) {
-        return
-            address(
-                new TransparentUpgradeableProxy(_logic, initialOwner, _data)
-            );
+    function deploy(address _logic, address initialOwner, bytes memory _data) internal returns (address) {
+        return address(new TransparentUpgradeableProxy(_logic, initialOwner, _data));
     }
 }
 
 library accessManager {
-    address constant ACCESS_MANAGER_OWNER =
-        address(uint160(uint256(keccak256("access manager owner"))));
+    address constant ACCESS_MANAGER_OWNER = address(uint160(uint256(keccak256("access manager owner"))));
 
     function addr() internal pure returns (address) {
         return vm.computeCreateAddress(ACCESS_MANAGER_OWNER, 0);
@@ -48,19 +38,10 @@ library accessManager {
     }
 
     function expectAccessManagedUnauthorized() internal {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessManaged.AccessManagedUnauthorized.selector,
-                (address(this))
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, (address(this))));
     }
 
-    function grantAccess(
-        address target,
-        address account,
-        bytes4 selector
-    ) internal {
+    function grantAccess(address target, address account, bytes4 selector) internal {
         uint64 ROLE = 1;
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = selector;

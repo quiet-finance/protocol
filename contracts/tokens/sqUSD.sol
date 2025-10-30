@@ -8,34 +8,20 @@ import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC2
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
-contract sqUSD is
-    Initializable,
-    ERC4626Upgradeable,
-    ERC20PermitUpgradeable,
-    AccessManagedUpgradeable
-{
+contract sqUSD is Initializable, ERC4626Upgradeable, ERC20PermitUpgradeable, AccessManagedUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        IERC20 asset,
-        address initialAuthority
-    ) public initializer {
+    function initialize(IERC20 asset, address initialAuthority) public initializer {
         __ERC4626_init(asset);
         __ERC20_init("sQuietUSD", "sqUSD");
         __ERC20Permit_init("sQuietUSD");
         __AccessManaged_init(initialAuthority);
     }
 
-    function decimals()
-        public
-        view
-        virtual
-        override(ERC4626Upgradeable, ERC20Upgradeable)
-        returns (uint8)
-    {
+    function decimals() public view virtual override(ERC4626Upgradeable, ERC20Upgradeable) returns (uint8) {
         return ERC4626Upgradeable.decimals();
     }
 }

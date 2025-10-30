@@ -7,9 +7,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IStrategy} from "../interfaces/IStrategy.sol";
 
-abstract contract Strategy is AccessManagedUpgradeable, IStrategy {
-    using SafeERC20 for IERC20;
+using SafeERC20 for IERC20;
 
+abstract contract Strategy is AccessManagedUpgradeable, IStrategy {
     IERC20 public immutable asset;
 
     /// @custom:oz-upgrades-unsafe-allow constructor

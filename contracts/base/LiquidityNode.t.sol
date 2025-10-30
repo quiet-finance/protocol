@@ -39,10 +39,7 @@ contract LiquidityNodeTest is Test {
             $.proxy.deploy(
                 address(nodeImpl),
                 address(this),
-                abi.encodeCall(
-                    MockLiquidityNode.initialize,
-                    ($.accessManager.addr())
-                )
+                abi.encodeCall(MockLiquidityNode.initialize, ($.accessManager.addr()))
             )
         );
 
@@ -50,10 +47,7 @@ contract LiquidityNodeTest is Test {
             $.proxy.deploy(
                 address(new MockStrategy(asset)),
                 address(this),
-                abi.encodeCall(
-                    MockStrategy.initialize,
-                    ($.accessManager.addr())
-                )
+                abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
         );
 
@@ -61,10 +55,7 @@ contract LiquidityNodeTest is Test {
             $.proxy.deploy(
                 address(new MockStrategy(otherAsset)),
                 address(this),
-                abi.encodeCall(
-                    MockStrategy.initialize,
-                    ($.accessManager.addr())
-                )
+                abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
         );
 
@@ -84,11 +75,7 @@ contract LiquidityNodeTest is Test {
 
         address[] memory strategies = node.strategies();
         vm.assertEq(strategies.length, 1);
-        vm.assertEq(
-            strategies[0],
-            address(strategy),
-            "Strategy should be added to list"
-        );
+        vm.assertEq(strategies[0], address(strategy), "Strategy should be added to list");
         vm.assertEq(
             node.asset().allowance(address(node), address(strategy)),
             type(uint256).max,
@@ -109,10 +96,7 @@ contract LiquidityNodeTest is Test {
         $.accessManager.expectAccessManagedUnauthorized();
         node.removeStrategy(address(strategy));
 
-        $.accessManager.grantAccess(
-            address(node),
-            node.removeStrategy.selector
-        );
+        $.accessManager.grantAccess(address(node), node.removeStrategy.selector);
 
         vm.expectEmit();
         emit ILiquidityNode.StrategyAdded(address(strategy));
@@ -129,10 +113,7 @@ contract LiquidityNodeTest is Test {
         node.addStrategy(address(strategy));
         asset.mint(address(this), 1);
         asset.approve(address(strategy), 1);
-        $.accessManager.grantAccess(
-            address(strategy),
-            strategy.deposit.selector
-        );
+        $.accessManager.grantAccess(address(strategy), strategy.deposit.selector);
         strategy.deposit(1, bytes(""));
 
         vm.expectRevert(ILiquidityNode.NavShouldBeZero.selector);
@@ -144,10 +125,7 @@ contract LiquidityNodeTest is Test {
         $.accessManager.expectAccessManagedUnauthorized();
         node.addLiquidityEdge(address(edge));
 
-        $.accessManager.grantAccess(
-            address(node),
-            node.addLiquidityEdge.selector
-        );
+        $.accessManager.grantAccess(address(node), node.addLiquidityEdge.selector);
 
         vm.expectEmit();
         emit ILiquidityNode.LiquidityEdgeAdded(address(edge));
@@ -155,11 +133,7 @@ contract LiquidityNodeTest is Test {
 
         address[] memory liquidityEdges = node.liquidityEdges();
         vm.assertEq(liquidityEdges.length, 1);
-        vm.assertEq(
-            liquidityEdges[0],
-            address(edge),
-            "LiquidityEdge should be added to list"
-        );
+        vm.assertEq(liquidityEdges[0], address(edge), "LiquidityEdge should be added to list");
         vm.assertEq(
             node.asset().allowance(address(node), address(edge)),
             type(uint256).max,
@@ -172,10 +146,7 @@ contract LiquidityNodeTest is Test {
         $.accessManager.expectAccessManagedUnauthorized();
         node.removeLiquidityEdge(address(edge));
 
-        $.accessManager.grantAccess(
-            address(node),
-            node.removeLiquidityEdge.selector
-        );
+        $.accessManager.grantAccess(address(node), node.removeLiquidityEdge.selector);
 
         vm.expectEmit();
         emit ILiquidityNode.LiquidityEdgeRemoved(address(edge));

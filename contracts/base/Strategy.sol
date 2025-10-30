@@ -10,19 +10,26 @@ import {IStrategy} from "../interfaces/IStrategy.sol";
 abstract contract Strategy is AccessManagedUpgradeable, IStrategy {
     using SafeERC20 for IERC20;
 
+    IERC20 public immutable asset;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(IERC20 asset_) {
+        _disableInitializers();
+
+        asset = asset_;
+    }
+
     function deposit(uint256 amount, bytes calldata data) external restricted {
-        asset().safeTransferFrom(msg.sender, address(this), amount);
+        asset.safeTransferFrom(msg.sender, address(this), amount);
         _deposit(amount, data);
     }
 
     function withdraw(uint256 amount, bytes calldata data) external restricted {
         _withdraw(amount, data);
-        asset().safeTransfer(msg.sender, amount);
+        asset.safeTransfer(msg.sender, amount);
     }
 
     function _deposit(uint256 amount, bytes calldata data) internal virtual;
 
     function _withdraw(uint256 amount, bytes calldata data) internal virtual;
-
-    function asset() public view virtual returns (IERC20);
 }

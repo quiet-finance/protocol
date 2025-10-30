@@ -14,8 +14,17 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    IERC20 public immutable asset;
+
     EnumerableSet.AddressSet private _strategies;
     EnumerableSet.AddressSet private _liquidityEdges;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(IERC20 asset_) {
+        _disableInitializers();
+
+        asset = asset_;
+    }
 
     /// @notice We don't validate strategy, because of not whitelisted strategy hasn't allowance
     function enter(
@@ -58,21 +67,21 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
 
     function addLiquidityEdge(address liquidityEdge) external restricted {
         _liquidityEdges.add(liquidityEdge);
-        asset().forceApprove(liquidityEdge, type(uint256).max);
+        asset.forceApprove(liquidityEdge, type(uint256).max);
         emit LiquidityEdgeAdded(liquidityEdge);
     }
 
     function removeLiquidityEdge(address liquidityEdge) external restricted {
         _liquidityEdges.remove(liquidityEdge);
-        asset().forceApprove(liquidityEdge, 0);
+        asset.forceApprove(liquidityEdge, 0);
         emit LiquidityEdgeRemoved(liquidityEdge);
     }
 
     function addStrategy(address strategy) external restricted {
-        require(IStrategy(strategy).asset() == asset(), UnsupportedStrategy());
+        require(IStrategy(strategy).asset() == asset, UnsupportedStrategy());
 
         _strategies.add(strategy);
-        asset().forceApprove(strategy, type(uint256).max);
+        asset.forceApprove(strategy, type(uint256).max);
         emit StrategyAdded(strategy);
     }
 
@@ -80,7 +89,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
         require(IStrategy(strategy).nav() == 0, NavShouldBeZero());
 
         _strategies.remove(strategy);
-        asset().forceApprove(strategy, 0);
+        asset.forceApprove(strategy, 0);
         emit StrategyAdded(strategy);
     }
 
@@ -92,23 +101,10 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
         return _liquidityEdges.values();
     }
 
-    function nav() external view returns (uint256) {
-        return allocatedNav() + unallocatedNav();
-    }
-
-    function allocatedNav()
-        public
-        view
-        virtual
-        returns (uint256 strategiesNav)
-    {
+    function nav() external view returns (uint256 strategiesNav) {
         uint256 n = _strategies.length();
         for (uint256 i = 0; i < n; i++) {
             strategiesNav += IStrategy(_strategies.at(i)).nav();
         }
     }
-
-    function asset() public view virtual returns (IERC20);
-
-    function unallocatedNav() public view virtual returns (uint256);
 }

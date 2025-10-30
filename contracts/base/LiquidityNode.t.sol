@@ -13,23 +13,10 @@ import {MockStrategy} from "./Strategy.t.sol";
 import {LiquidityNode, ILiquidityNode} from "./LiquidityNode.sol";
 
 contract MockLiquidityNode is LiquidityNode {
-    IERC20 _asset;
+    constructor(IERC20 asset) LiquidityNode(asset) {}
 
-    function initialize(
-        IERC20 asset_,
-        address initialAuthority
-    ) public initializer {
+    function initialize(address initialAuthority) public initializer {
         __AccessManaged_init(initialAuthority);
-
-        _asset = asset_;
-    }
-
-    function asset() public view virtual override returns (IERC20) {
-        return _asset;
-    }
-
-    function unallocatedNav() public view virtual override returns (uint256) {
-        return _asset.balanceOf(address(this));
     }
 }
 
@@ -47,36 +34,36 @@ contract LiquidityNodeTest is Test {
 
         otherAsset = new MockAsset();
 
-        LiquidityNode nodeImpl = new MockLiquidityNode();
+        LiquidityNode nodeImpl = new MockLiquidityNode(asset);
         node = LiquidityNode(
             $.proxy.deploy(
                 address(nodeImpl),
                 address(this),
                 abi.encodeCall(
                     MockLiquidityNode.initialize,
-                    (asset, $.accessManager.addr())
+                    ($.accessManager.addr())
                 )
             )
         );
 
-        MockStrategy strategyImpl = new MockStrategy();
         strategy = MockStrategy(
             $.proxy.deploy(
-                address(strategyImpl),
+                address(new MockStrategy(asset)),
                 address(this),
                 abi.encodeCall(
                     MockStrategy.initialize,
-                    (asset, $.accessManager.addr())
+                    ($.accessManager.addr())
                 )
             )
         );
+
         otherStrategy = MockStrategy(
             $.proxy.deploy(
-                address(strategyImpl),
+                address(new MockStrategy(otherAsset)),
                 address(this),
                 abi.encodeCall(
                     MockStrategy.initialize,
-                    (otherAsset, $.accessManager.addr())
+                    ($.accessManager.addr())
                 )
             )
         );

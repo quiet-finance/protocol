@@ -73,13 +73,13 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     }
 
     function addLiquidityEdge(address liquidityEdge) external restricted {
-        _getStorage()._liquidityEdges.add(liquidityEdge);
+        _getLiquidityNodeStorage()._liquidityEdges.add(liquidityEdge);
         asset.forceApprove(liquidityEdge, type(uint256).max);
         emit LiquidityEdgeAdded(liquidityEdge);
     }
 
     function removeLiquidityEdge(address liquidityEdge) external restricted {
-        _getStorage()._liquidityEdges.remove(liquidityEdge);
+        _getLiquidityNodeStorage()._liquidityEdges.remove(liquidityEdge);
         asset.forceApprove(liquidityEdge, 0);
         emit LiquidityEdgeRemoved(liquidityEdge);
     }
@@ -87,7 +87,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     function addStrategy(address strategy) external restricted {
         require(IStrategy(strategy).asset() == asset, UnsupportedStrategy());
 
-        _getStorage()._strategies.add(strategy);
+        _getLiquidityNodeStorage()._strategies.add(strategy);
         asset.forceApprove(strategy, type(uint256).max);
         emit StrategyAdded(strategy);
     }
@@ -95,27 +95,27 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     function removeStrategy(address strategy) external restricted {
         require(IStrategy(strategy).nav() == 0, NavShouldBeZero());
 
-        _getStorage()._strategies.remove(strategy);
+        _getLiquidityNodeStorage()._strategies.remove(strategy);
         asset.forceApprove(strategy, 0);
         emit StrategyAdded(strategy);
     }
 
     function strategies() external view returns (address[] memory) {
-        return _getStorage()._strategies.values();
+        return _getLiquidityNodeStorage()._strategies.values();
     }
 
     function liquidityEdges() external view returns (address[] memory) {
-        return _getStorage()._liquidityEdges.values();
+        return _getLiquidityNodeStorage()._liquidityEdges.values();
     }
 
     function nav() external view returns (uint256 strategiesNav) {
-        uint256 n = _getStorage()._strategies.length();
+        uint256 n = _getLiquidityNodeStorage()._strategies.length();
         for (uint256 i = 0; i < n; i++) {
-            strategiesNav += IStrategy(_getStorage()._strategies.at(i)).nav();
+            strategiesNav += IStrategy(_getLiquidityNodeStorage()._strategies.at(i)).nav();
         }
     }
 
-    function _getStorage() private pure returns (LiquidityNodeStorage storage $) {
+    function _getLiquidityNodeStorage() private pure returns (LiquidityNodeStorage storage $) {
         assembly {
             $.slot := LIQUIDITYNODE_STORAGE_LOCATION
         }

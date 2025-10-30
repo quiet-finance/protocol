@@ -12,7 +12,7 @@ using BpsMath for uint256;
 
 contract Gateway is AccessManagedUpgradeable, IGateway {
     /// @custom:storage-location erc7201:quiet-finance.storage.Gateway;
-    struct GatewayStorage {
+    struct Storage {
         uint256 successFeeBps;
         address treasury;
         uint256 nav;
@@ -23,8 +23,7 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
     }
 
     /// @dev keccak256(abi.encode(uint256(keccak256("quiet-finance.storage.Gateway")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant GATEWAY_STORAGE_LOCATION =
-        0x6c7c638069ba33d959e62c9f88f4b296b9b20152cbd15f932bd72f3052915f00;
+    bytes32 private constant STORAGE_LOCATION = 0x6c7c638069ba33d959e62c9f88f4b296b9b20152cbd15f932bd72f3052915f00;
 
     IERC20 immutable USDC;
     IqUSD immutable qUSD;
@@ -48,15 +47,15 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
         __AccessManaged_init(initialAuthority);
 
         instantRedeemFeeBps_.validateBps();
-        _getGatewayStorage().instantRedeemFeeBps = instantRedeemFeeBps_;
+        _getStorage().instantRedeemFeeBps = instantRedeemFeeBps_;
         emit InstantRedeemFeeUpdated(0, instantRedeemFeeBps_);
 
         successFeeBps_.validateBps();
-        _getGatewayStorage().successFeeBps = successFeeBps_;
+        _getStorage().successFeeBps = successFeeBps_;
         emit SuccessFeeUpdated(0, successFeeBps_);
 
         require(treasury_ != address(0));
-        _getGatewayStorage().treasury = treasury_;
+        _getStorage().treasury = treasury_;
         emit TreasuryUpdated(address(0), treasury_);
     }
 
@@ -69,8 +68,8 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
 
     function redeemInstant(address to, uint256 amount) external {
         qUSD.burn(msg.sender, amount);
-        uint256 fee = amount.bpsOf(_getGatewayStorage().instantRedeemFeeBps);
-        USDC.transfer(_getGatewayStorage().treasury, fee);
+        uint256 fee = amount.bpsOf(_getStorage().instantRedeemFeeBps);
+        USDC.transfer(_getStorage().treasury, fee);
         USDC.transfer(to, amount - fee);
 
         emit InstantRedeem(msg.sender, to, amount);
@@ -79,8 +78,8 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
     function requestRedeem(address to, uint256 amount) external returns (uint256 requestId) {
         qUSD.burn(msg.sender, amount);
 
-        requestId = ++_getGatewayStorage().nextRedeemId;
-        _getGatewayStorage().redeemRequests[requestId] = RedeemRequestData({
+        requestId = ++_getStorage().nextRedeemId;
+        _getStorage().redeemRequests[requestId] = RedeemRequestData({
             requester: msg.sender,
             recipient: to,
             amount: amount,
@@ -91,22 +90,22 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
     }
 
     function finishRedeem(uint256 requestId) external {
-        RedeemRequestData memory redeemRequest = _getGatewayStorage().redeemRequests[requestId];
+        RedeemRequestData memory redeemRequest = _getStorage().redeemRequests[requestId];
         require(!redeemRequest.isProcessed, RedeemRequestAlreadyProcessed());
-        require(requestId <= _getGatewayStorage().maxRedeemableId, RedeemRequestNotReady());
+        require(requestId <= _getStorage().maxRedeemableId, RedeemRequestNotReady());
 
-        _getGatewayStorage().redeemRequests[requestId].isProcessed = true;
+        _getStorage().redeemRequests[requestId].isProcessed = true;
         USDC.transfer(redeemRequest.recipient, redeemRequest.amount);
 
         emit Redeem(requestId, redeemRequest.recipient, redeemRequest.amount);
     }
 
     function finishRebalance(uint256 navAfterRebalance, int256 assetsDelta) external restricted {
-        uint256 nav = _getGatewayStorage().nav;
+        uint256 nav = _getStorage().nav;
         if (navAfterRebalance > nav) {
             uint256 yield = navAfterRebalance - nav;
-            uint256 successFee = yield.bpsOf(_getGatewayStorage().successFeeBps);
-            qUSD.mint(_getGatewayStorage().treasury, successFee);
+            uint256 successFee = yield.bpsOf(_getStorage().successFeeBps);
+            qUSD.mint(_getStorage().treasury, successFee);
             qUSD.mint(sqUSD, yield - successFee);
         } else if (nav > navAfterRebalance) {
             qUSD.burn(sqUSD, nav - navAfterRebalance);
@@ -123,48 +122,48 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
     }
 
     function setMaxRedeemableId(uint256 id) external restricted {
-        require(id > _getGatewayStorage().maxRedeemableId);
+        require(id > _getStorage().maxRedeemableId);
 
-        uint256 oldMaxRedeemableId = _getGatewayStorage().maxRedeemableId;
-        _getGatewayStorage().maxRedeemableId = id;
+        uint256 oldMaxRedeemableId = _getStorage().maxRedeemableId;
+        _getStorage().maxRedeemableId = id;
         emit MaxRedeemableIdUpdated(oldMaxRedeemableId, id);
     }
 
     function setTreasury(address treasury_) external restricted {
         require(treasury_ != address(0));
 
-        address oldTreasury = _getGatewayStorage().treasury;
-        _getGatewayStorage().treasury = treasury_;
+        address oldTreasury = _getStorage().treasury;
+        _getStorage().treasury = treasury_;
         emit TreasuryUpdated(oldTreasury, treasury_);
     }
 
     function setInstantRedeemFee(uint256 feeBps) external restricted {
         feeBps.validateBps();
 
-        uint256 oldInstantRedeemFeeBps = _getGatewayStorage().instantRedeemFeeBps;
-        _getGatewayStorage().instantRedeemFeeBps = feeBps;
+        uint256 oldInstantRedeemFeeBps = _getStorage().instantRedeemFeeBps;
+        _getStorage().instantRedeemFeeBps = feeBps;
         emit InstantRedeemFeeUpdated(oldInstantRedeemFeeBps, feeBps);
     }
 
     function setSuccessFee(uint256 feeBps) external restricted {
         feeBps.validateBps();
 
-        uint256 oldSuccessFeeBps = _getGatewayStorage().successFeeBps;
-        _getGatewayStorage().successFeeBps = feeBps;
+        uint256 oldSuccessFeeBps = _getStorage().successFeeBps;
+        _getStorage().successFeeBps = feeBps;
         emit SuccessFeeUpdated(oldSuccessFeeBps, feeBps);
     }
 
     function treasury() external view returns (address) {
-        return _getGatewayStorage().treasury;
+        return _getStorage().treasury;
     }
 
     function instantRedeemFeeBps() external view returns (uint256) {
-        return _getGatewayStorage().instantRedeemFeeBps;
+        return _getStorage().instantRedeemFeeBps;
     }
 
-    function _getGatewayStorage() private pure returns (GatewayStorage storage $) {
+    function _getStorage() private pure returns (Storage storage $) {
         assembly {
-            $.slot := GATEWAY_STORAGE_LOCATION
+            $.slot := STORAGE_LOCATION
         }
     }
 }

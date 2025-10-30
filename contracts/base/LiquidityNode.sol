@@ -15,14 +15,13 @@ using SafeERC20 for IERC20;
 
 abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     /// @custom:storage-location erc7201:quiet-finance.storage.LiquidityNode;
-    struct LiquidityNodeStorage {
+    struct Storage {
         EnumerableSet.AddressSet _strategies;
         EnumerableSet.AddressSet _liquidityEdges;
     }
 
     /// @dev keccak256(abi.encode(uint256(keccak256("quiet-finance.storage.LiquidityNode")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant LIQUIDITYNODE_STORAGE_LOCATION =
-        0xf1d08d25cb0c657a55dd4b08dfc06d9a51ab54febd3c2710eb14c4d290c1af00;
+    bytes32 private constant STORAGE_LOCATION = 0xf1d08d25cb0c657a55dd4b08dfc06d9a51ab54febd3c2710eb14c4d290c1af00;
 
     IERC20 public immutable asset;
 
@@ -73,13 +72,13 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     }
 
     function addLiquidityEdge(address liquidityEdge) external restricted {
-        _getLiquidityNodeStorage()._liquidityEdges.add(liquidityEdge);
+        _getStorage()._liquidityEdges.add(liquidityEdge);
         asset.forceApprove(liquidityEdge, type(uint256).max);
         emit LiquidityEdgeAdded(liquidityEdge);
     }
 
     function removeLiquidityEdge(address liquidityEdge) external restricted {
-        _getLiquidityNodeStorage()._liquidityEdges.remove(liquidityEdge);
+        _getStorage()._liquidityEdges.remove(liquidityEdge);
         asset.forceApprove(liquidityEdge, 0);
         emit LiquidityEdgeRemoved(liquidityEdge);
     }
@@ -87,7 +86,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     function addStrategy(address strategy) external restricted {
         require(IStrategy(strategy).asset() == asset, UnsupportedStrategy());
 
-        _getLiquidityNodeStorage()._strategies.add(strategy);
+        _getStorage()._strategies.add(strategy);
         asset.forceApprove(strategy, type(uint256).max);
         emit StrategyAdded(strategy);
     }
@@ -95,29 +94,29 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, ILiquidityNode {
     function removeStrategy(address strategy) external restricted {
         require(IStrategy(strategy).nav() == 0, NavShouldBeZero());
 
-        _getLiquidityNodeStorage()._strategies.remove(strategy);
+        _getStorage()._strategies.remove(strategy);
         asset.forceApprove(strategy, 0);
         emit StrategyAdded(strategy);
     }
 
     function strategies() external view returns (address[] memory) {
-        return _getLiquidityNodeStorage()._strategies.values();
+        return _getStorage()._strategies.values();
     }
 
     function liquidityEdges() external view returns (address[] memory) {
-        return _getLiquidityNodeStorage()._liquidityEdges.values();
+        return _getStorage()._liquidityEdges.values();
     }
 
     function nav() external view returns (uint256 strategiesNav) {
-        uint256 n = _getLiquidityNodeStorage()._strategies.length();
+        uint256 n = _getStorage()._strategies.length();
         for (uint256 i = 0; i < n; i++) {
-            strategiesNav += IStrategy(_getLiquidityNodeStorage()._strategies.at(i)).nav();
+            strategiesNav += IStrategy(_getStorage()._strategies.at(i)).nav();
         }
     }
 
-    function _getLiquidityNodeStorage() private pure returns (LiquidityNodeStorage storage $) {
+    function _getStorage() private pure returns (Storage storage $) {
         assembly {
-            $.slot := LIQUIDITYNODE_STORAGE_LOCATION
+            $.slot := STORAGE_LOCATION
         }
     }
 }

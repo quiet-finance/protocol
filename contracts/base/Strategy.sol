@@ -6,27 +6,18 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IStrategy} from "../interfaces/IStrategy.sol";
+import {UnderlyingAsset} from "./UnderlyingAsset.sol";
 
 using SafeERC20 for IERC20;
 
-abstract contract Strategy is AccessManagedUpgradeable, IStrategy {
-    IERC20 public immutable asset;
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(IERC20 asset_) {
-        _disableInitializers();
-
-        asset = asset_;
-    }
-
+abstract contract Strategy is AccessManagedUpgradeable, UnderlyingAsset, IStrategy {
     function deposit(uint256 amount, bytes calldata data) external restricted {
-        asset.safeTransferFrom(msg.sender, address(this), amount);
         _deposit(amount, data);
     }
 
     function withdraw(uint256 amount, bytes calldata data) external restricted {
         _withdraw(amount, data);
-        asset.safeTransfer(msg.sender, amount);
+        _asset.safeTransfer(msg.sender, amount);
     }
 
     function _deposit(uint256 amount, bytes calldata data) internal virtual;

@@ -11,9 +11,10 @@ import {MockLiquidityEdge} from "../test/MockLiquidityEdge.sol";
 import {MockStrategy} from "./Strategy.t.sol";
 
 import {LiquidityNode, ILiquidityNode} from "./LiquidityNode.sol";
+import {UnderlyingAsset} from "./UnderlyingAsset.sol";
 
 contract MockLiquidityNode is LiquidityNode {
-    constructor(IERC20 asset) LiquidityNode(asset) {}
+    constructor(IERC20 asset) UnderlyingAsset(asset) {}
 
     function initialize(address initialAuthority) public initializer {
         __AccessManaged_init(initialAuthority);
@@ -27,6 +28,7 @@ contract LiquidityNodeTest is Test {
     MockAsset asset;
     MockAsset otherAsset;
     MockLiquidityEdge edge;
+    MockLiquidityEdge otherEdge;
 
     function setUp() external {
         asset = new MockAsset();
@@ -59,7 +61,21 @@ contract LiquidityNodeTest is Test {
             )
         );
 
-        edge = new MockLiquidityEdge();
+        edge = MockLiquidityEdge(
+            $.proxy.deploy(
+                address(new MockLiquidityEdge(asset)),
+                address(this),
+                abi.encodeCall(MockLiquidityEdge.initialize, ($.accessManager.addr()))
+            )
+        );
+
+        otherEdge = MockLiquidityEdge(
+            $.proxy.deploy(
+                address(new MockLiquidityEdge(otherAsset)),
+                address(this),
+                abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
+            )
+        );
     }
 
     function test_addStrategy() external {
@@ -76,14 +92,9 @@ contract LiquidityNodeTest is Test {
         address[] memory strategies = node.strategies();
         vm.assertEq(strategies.length, 1);
         vm.assertEq(strategies[0], address(strategy), "Strategy should be added to list");
-        vm.assertEq(
-            node.asset().allowance(address(node), address(strategy)),
-            type(uint256).max,
-            "LiquidityNode should give full allowance to Strategy"
-        );
 
         // strategy with different asset
-        vm.expectRevert(ILiquidityNode.UnsupportedStrategy.selector);
+        vm.expectRevert(ILiquidityNode.UnsupportedAsset.selector);
         node.addStrategy(address(otherStrategy));
     }
 
@@ -103,16 +114,10 @@ contract LiquidityNodeTest is Test {
         node.removeStrategy(address(strategy));
 
         vm.assertEq(node.strategies().length, 0);
-        vm.assertEq(
-            node.asset().allowance(address(node), address(strategy)),
-            0,
-            "LiquidityNode should remove allowance from Strategy"
-        );
 
         // removeStrategy with NAV
         node.addStrategy(address(strategy));
-        asset.mint(address(this), 1);
-        asset.approve(address(strategy), 1);
+        asset.mint(address(strategy), 1);
         $.accessManager.grantAccess(address(strategy), strategy.deposit.selector);
         strategy.deposit(1, bytes(""));
 
@@ -134,11 +139,10 @@ contract LiquidityNodeTest is Test {
         address[] memory liquidityEdges = node.liquidityEdges();
         vm.assertEq(liquidityEdges.length, 1);
         vm.assertEq(liquidityEdges[0], address(edge), "LiquidityEdge should be added to list");
-        vm.assertEq(
-            node.asset().allowance(address(node), address(edge)),
-            type(uint256).max,
-            "LiquidityNode should give full allowance to LiquidityEdge"
-        );
+
+        // LiquidityEdge with different asset
+        vm.expectRevert(ILiquidityNode.UnsupportedAsset.selector);
+        node.addLiquidityEdge(address(otherEdge));
     }
 
     function test_removeLiquidityEdge() external {

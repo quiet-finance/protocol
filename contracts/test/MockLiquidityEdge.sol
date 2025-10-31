@@ -3,13 +3,20 @@ pragma solidity ^0.8.27;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {ILiquidityEdge} from "../interfaces/ILiquidityEdge.sol";
+import {LiquidityEdge} from "../base/LiquidityEdge.sol";
+import {UnderlyingAsset} from "../base/UnderlyingAsset.sol";
 
-contract MockLiquidityEdge is ILiquidityEdge {
-    function transfer(uint256 amount, uint256, bytes calldata data) external payable {
-        (IERC20 asset, address to) = abi.decode(data, (IERC20, address));
-        asset.transferFrom(msg.sender, to, amount);
+contract MockLiquidityEdge is LiquidityEdge {
+    constructor(IERC20 asset) UnderlyingAsset(asset) {}
+
+    function initialize(address initialAuthority) public initializer {
+        __AccessManaged_init(initialAuthority);
     }
 
-    function quoteTransfer(uint256 amount, uint256 chainId, bytes calldata data) external view returns (uint256) {}
+    function _transfer(uint256 amount, bytes calldata data) internal override {
+        address to = abi.decode(data, (address));
+        _asset.transferFrom(msg.sender, to, amount);
+    }
+
+    function quoteTransfer(uint256 amount, bytes calldata data) external view returns (uint256) {}
 }

@@ -12,10 +12,16 @@ import {UnderlyingToken} from "./UnderlyingToken.sol";
 using SafeERC20 for IERC20;
 
 abstract contract Strategy is AccessManagedUpgradeable, UnderlyingToken, IStrategy {
-    IOracle oracle;
+    /// @custom:storage-location erc7201:quiet-finance.storage.Strategy
+    struct Storage {
+        IOracle oracle;
+    }
+
+    /// @dev keccak256(abi.encode(uint256(keccak256("quiet-finance.storage.Strategy")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant STORAGE_LOCATION = 0x8dace110bad92d2e155cd128c56a1cf1dde760848cbd860924dfd007f1975a00;
 
     function __Strategy_init(IOracle initialOracle) internal onlyInitializing {
-        oracle = initialOracle;
+        _getStorage().oracle = initialOracle;
         emit OracleUpdated(address(0), address(initialOracle));
     }
 
@@ -29,12 +35,26 @@ abstract contract Strategy is AccessManagedUpgradeable, UnderlyingToken, IStrate
     }
 
     function setOralce(IOracle newOracle) external restricted {
-        IOracle oldOracle = oracle;
-        oracle = newOracle;
+        IOracle oldOracle = _getStorage().oracle;
+        _getStorage().oracle = newOracle;
         emit OracleUpdated(address(oldOracle), address(newOracle));
+    }
+
+    function oracle() public view returns (IOracle) {
+        return _getStorage().oracle;
+    }
+
+    function _getAssetAmount(uint256 tokenAmount) internal {
+        _getStorage().oracle.getAssetAmount(tokenAmount);
     }
 
     function _deposit(uint256 amount, bytes calldata data) internal virtual;
 
     function _withdraw(uint256 amount, bytes calldata data) internal virtual;
+
+    function _getStorage() private pure returns (Storage storage $) {
+        assembly {
+            $.slot := STORAGE_LOCATION
+        }
+    }
 }

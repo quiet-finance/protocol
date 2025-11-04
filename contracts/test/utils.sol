@@ -4,10 +4,10 @@ pragma solidity ^0.8.27;
 import {Vm} from "forge-std/src/Base.sol";
 
 import {AccessManager} from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import {IAccessManaged} from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {IAccessManaged} from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
 // Cheat code address, 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D.
 address constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));

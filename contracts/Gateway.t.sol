@@ -3,23 +3,22 @@ pragma solidity ^0.8.27;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Test} from "forge-std/Test.sol";
-
+import {MockERC20} from "forge-std/src/mocks/MockERC20.sol";
 import "./test/utils.sol" as $;
-import {MockToken as USDC} from "./test/MockToken.sol";
+
 import {qUSD} from "./tokens/qUSD.sol";
 import {sqUSD} from "./tokens/sqUSD.sol";
 import {Gateway} from "./Gateway.sol";
 
 contract LiquidityNodeTest is Test {
-    USDC usdc;
+    MockERC20 usdc;
     qUSD qusd;
     sqUSD squsd;
     Gateway gateway;
-    address treasury = address(777);
     address user = address(222);
 
     function setUp() external {
-        usdc = new USDC();
+        usdc = deployMockERC20("USC", "USDC", 6);
         qusd = qUSD(
             $.proxy.deploy(
                 address(new qUSD()),
@@ -37,14 +36,15 @@ contract LiquidityNodeTest is Test {
 
         gateway = Gateway(
             $.proxy.deploy(
-                address(new Gateway(usdc, qusd, address(squsd))),
+                address(new Gateway(IERC20(address(usdc)), qusd, address(squsd))),
                 address(this),
                 abi.encodeCall(
                     Gateway.initialize,
                     (
                         $.accessManager.addr(),
-                        treasury,
-                        300, // 3%
+                        address(777),
+                        10, // 0.1%
+                        50, // 0.5%
                         1000 // 10%
                     )
                 )
@@ -56,45 +56,57 @@ contract LiquidityNodeTest is Test {
     }
 
     function test_issue() external {
-        uint256 issueAmount = 10;
+        (address treasury, uint256 mintFeeBps, , ) = gateway.getFees();
+        uint256 usdcAmount = 100 * 1e6;
+        uint256 treasuryFee = (usdcAmount * mintFeeBps) / 1e4;
+        uint256 qusdAmount = ((usdcAmount - treasuryFee) * 1e18) / 1e6;
 
-        usdc.mint(address(this), issueAmount);
-        usdc.approve(address(gateway), issueAmount);
+        deal(address(usdc), address(this), usdcAmount);
+        usdc.approve(address(gateway), usdcAmount);
+
         uint256 gatewayBalanceBefore = usdc.balanceOf(address(gateway));
+        uint256 treasuryBalanceBefore = usdc.balanceOf(address(treasury));
         uint256 userBalanceBefore = qusd.balanceOf(user);
-        gateway.issue(user, issueAmount);
+        gateway.issue(user, usdcAmount);
 
-        assertEq(usdc.balanceOf(address(gateway)) - gatewayBalanceBefore, issueAmount, "gateway should take USDC");
-        assertEq(qusd.balanceOf(user) - userBalanceBefore, issueAmount, "gateway should give qUSD");
+        assertEq(
+            usdc.balanceOf(address(gateway)) - gatewayBalanceBefore,
+            usdcAmount - treasuryFee,
+            "gateway should take USDC (-fee)"
+        );
+        assertEq(usdc.balanceOf(treasury) - treasuryBalanceBefore, treasuryFee, "gateway should take fee in USDC");
+        assertEq(qusd.balanceOf(user) - userBalanceBefore, qusdAmount, "gateway should give qUSD");
     }
 
     function test_redeemInstant() external {
-        uint256 redeemAmount = 10;
+        // mint fee disabled to simplify testing
+        $.accessManager.grantAccess(address(gateway), address(this), Gateway.setMintFee.selector);
+        gateway.setMintFee(0);
 
-        usdc.mint(address(this), redeemAmount);
-        usdc.approve(address(gateway), redeemAmount);
-        gateway.issue(address(this), redeemAmount);
-        uint256 redeemerBalanceBefore = qusd.balanceOf(address(this));
+        (address treasury, , uint256 instantRedeemFeeBps, ) = gateway.getFees();
+        uint256 usdcAmount = 100 * 1e6;
+        uint256 treasuryFee = (usdcAmount * instantRedeemFeeBps) / 1e4;
+
+        deal(address(usdc), address(this), usdcAmount);
+        usdc.approve(address(gateway), usdcAmount);
+        gateway.issue(address(this), usdcAmount);
+
         uint256 gatewayBalanceBefore = usdc.balanceOf(address(gateway));
         uint256 userBalanceBefore = usdc.balanceOf(user);
-        uint256 treasuryBalanceBefore = usdc.balanceOf(gateway.treasury());
-        gateway.redeemInstant(user, redeemAmount);
+        uint256 treasuryBalanceBefore = usdc.balanceOf(treasury);
+        gateway.redeemInstant(user, qusd.balanceOf(address(this)));
 
-        assertEq(redeemerBalanceBefore - qusd.balanceOf(address(this)), redeemAmount, "gateway should burn qUSD");
+        assertEq(qusd.balanceOf(address(this)), 0, "gateway should burn qUSD");
         assertEq(
             gatewayBalanceBefore - usdc.balanceOf(address(gateway)),
-            redeemAmount,
+            usdcAmount,
             "gateway should withdraw redeemAmount of USDC"
         );
         assertEq(
             usdc.balanceOf(user) - userBalanceBefore,
-            redeemAmount - (redeemAmount * gateway.instantRedeemFeeBps()) / 10000,
+            usdcAmount - treasuryFee,
             "user should take redeemAmount of USDC (- fee)"
         );
-        assertEq(
-            usdc.balanceOf(gateway.treasury()) - treasuryBalanceBefore,
-            (redeemAmount * gateway.instantRedeemFeeBps()) / 10000,
-            "treasury should take fee from redeem"
-        );
+        assertEq(usdc.balanceOf(treasury) - treasuryBalanceBefore, treasuryFee, "treasury should take fee from redeem");
     }
 }

@@ -11,4 +11,9 @@ library BpsMath {
     function bpsOf(uint256 amount, uint256 bps) internal pure returns (uint256) {
         return (amount * bps) / BPS;
     }
+
+    function takeBps(uint256 amount, uint256 bps) internal pure returns (uint256 bpsValue, uint256 remainderValue) {
+        bpsValue = bpsOf(amount, bps);
+        remainderValue = amount - bpsValue;
+    }
 }

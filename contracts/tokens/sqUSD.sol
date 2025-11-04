@@ -14,8 +14,8 @@ contract sqUSD is Initializable, ERC4626Upgradeable, ERC20PermitUpgradeable, Acc
         _disableInitializers();
     }
 
-    function initialize(IERC20 asset, address initialAuthority) public initializer {
-        __ERC4626_init(asset);
+    function initialize(IERC20 token, address initialAuthority) public initializer {
+        __ERC4626_init(token);
         __ERC20_init("sQuietUSD", "sqUSD");
         __ERC20Permit_init("sQuietUSD");
         __AccessManaged_init(initialAuthority);

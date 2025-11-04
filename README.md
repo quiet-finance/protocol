@@ -8,7 +8,7 @@
 
 ## Contracts
 - `Strategy` - Contract, which represents one atomic yield source (example: we deposit USDC to Aave Ethereum and get lending yield - it's strategy, USDT Ethereum deposit or USDC Base deposit it's another strategies).
-- `LiquidityNode` - Do only one thing: liquidity management. In Quiet Finance ther are multiple instances of this contract will be deployed - for another chains or another liquidity assets (example: contract for USDT on ethereum, contract for USDC on Base).
+- `LiquidityNode` - Do only one thing: liquidity management. In Quiet Finance ther are multiple instances of this contract will be deployed - for every chain and every token (example: contract for USDT on ethereum, contract for USDC on Base).
 - `LiquidityEdge` - Contract, which connects two `LiquidityNode` contracts (example: contract for USDC on Ethereum <> USDC on Base via CCTP, contract for USDC on Ethereum <> USDT on Ethereum). `LiquidityEdge` doesn't holds any liquidity, its just moved it from one edge to another.
 - `Gateway` - main contract for all user-ended scenarios. Containts logic for minting qUSD, instant qUSD redeem and normal qUSD redeem (via queue).
 

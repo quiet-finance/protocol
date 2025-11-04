@@ -5,16 +5,16 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Test} from "forge-std/Test.sol";
 
 import "../test/utils.sol" as $;
-import {MockAsset} from "../test/MockAsset.sol";
+import {MockToken} from "../test/MockToken.sol";
 import {MockProtocol} from "../test/MockProtocol.sol";
 import {MockLiquidityEdge} from "../test/MockLiquidityEdge.sol";
 import {MockStrategy} from "./Strategy.t.sol";
 
 import {LiquidityNode, ILiquidityNode} from "./LiquidityNode.sol";
-import {UnderlyingAsset} from "./UnderlyingAsset.sol";
+import {UnderlyingToken} from "./UnderlyingToken.sol";
 
 contract MockLiquidityNode is LiquidityNode {
-    constructor(IERC20 asset) UnderlyingAsset(asset) {}
+    constructor(IERC20 token) UnderlyingToken(token) {}
 
     function initialize(address initialAuthority) public initializer {
         __AccessManaged_init(initialAuthority);
@@ -25,18 +25,18 @@ contract LiquidityNodeTest is Test {
     LiquidityNode node;
     MockStrategy strategy;
     MockStrategy otherStrategy;
-    MockAsset asset;
-    MockAsset otherAsset;
+    MockToken token;
+    MockToken otherToken;
     MockLiquidityEdge edge;
     MockLiquidityEdge otherEdge;
 
     function setUp() external {
-        asset = new MockAsset();
-        asset.mint(address(this), 1000);
+        token = new MockToken();
+        token.mint(address(this), 1000);
 
-        otherAsset = new MockAsset();
+        otherToken = new MockToken();
 
-        LiquidityNode nodeImpl = new MockLiquidityNode(asset);
+        LiquidityNode nodeImpl = new MockLiquidityNode(token);
         node = LiquidityNode(
             $.proxy.deploy(
                 address(nodeImpl),
@@ -47,7 +47,7 @@ contract LiquidityNodeTest is Test {
 
         strategy = MockStrategy(
             $.proxy.deploy(
-                address(new MockStrategy(asset)),
+                address(new MockStrategy(token)),
                 address(this),
                 abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
@@ -55,7 +55,7 @@ contract LiquidityNodeTest is Test {
 
         otherStrategy = MockStrategy(
             $.proxy.deploy(
-                address(new MockStrategy(otherAsset)),
+                address(new MockStrategy(otherToken)),
                 address(this),
                 abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
@@ -63,7 +63,7 @@ contract LiquidityNodeTest is Test {
 
         edge = MockLiquidityEdge(
             $.proxy.deploy(
-                address(new MockLiquidityEdge(asset)),
+                address(new MockLiquidityEdge(token)),
                 address(this),
                 abi.encodeCall(MockLiquidityEdge.initialize, ($.accessManager.addr()))
             )
@@ -71,7 +71,7 @@ contract LiquidityNodeTest is Test {
 
         otherEdge = MockLiquidityEdge(
             $.proxy.deploy(
-                address(new MockLiquidityEdge(otherAsset)),
+                address(new MockLiquidityEdge(otherToken)),
                 address(this),
                 abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
@@ -93,8 +93,8 @@ contract LiquidityNodeTest is Test {
         vm.assertEq(strategies.length, 1);
         vm.assertEq(strategies[0], address(strategy), "Strategy should be added to list");
 
-        // strategy with different asset
-        vm.expectRevert(ILiquidityNode.UnsupportedAsset.selector);
+        // strategy with different token
+        vm.expectRevert(ILiquidityNode.UnsupportedToken.selector);
         node.addStrategy(address(otherStrategy));
     }
 
@@ -117,7 +117,7 @@ contract LiquidityNodeTest is Test {
 
         // removeStrategy with NAV
         node.addStrategy(address(strategy));
-        asset.mint(address(strategy), 1);
+        token.mint(address(strategy), 1);
         $.accessManager.grantAccess(address(strategy), strategy.deposit.selector);
         strategy.deposit(1, bytes(""));
 
@@ -140,8 +140,8 @@ contract LiquidityNodeTest is Test {
         vm.assertEq(liquidityEdges.length, 1);
         vm.assertEq(liquidityEdges[0], address(edge), "LiquidityEdge should be added to list");
 
-        // LiquidityEdge with different asset
-        vm.expectRevert(ILiquidityNode.UnsupportedAsset.selector);
+        // LiquidityEdge with different token
+        vm.expectRevert(ILiquidityNode.UnsupportedToken.selector);
         node.addLiquidityEdge(address(otherEdge));
     }
 
@@ -159,7 +159,7 @@ contract LiquidityNodeTest is Test {
         address[] memory liquidityEdges = node.liquidityEdges();
         vm.assertEq(liquidityEdges.length, 0);
         vm.assertEq(
-            node.asset().allowance(address(node), address(edge)),
+            node.token().allowance(address(node), address(edge)),
             0,
             "LiquidityNode should remove allowance from LiquidityEdge"
         );

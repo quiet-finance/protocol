@@ -7,11 +7,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {ILiquidityEdge} from "../interfaces/ILiquidityEdge.sol";
 import {ILiquidityNode} from "../interfaces/ILiquidityNode.sol";
-import {UnderlyingAsset} from "./UnderlyingAsset.sol";
+import {UnderlyingToken} from "./UnderlyingToken.sol";
 
 using SafeERC20 for IERC20;
 
-abstract contract LiquidityEdge is AccessManagedUpgradeable, UnderlyingAsset, ILiquidityEdge {
+abstract contract LiquidityEdge is AccessManagedUpgradeable, UnderlyingToken, ILiquidityEdge {
     function transfer(uint256 amount, bytes calldata data) external payable {
         _transfer(amount, data);
     }

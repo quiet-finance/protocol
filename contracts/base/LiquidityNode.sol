@@ -9,13 +9,13 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IStrategy} from "../interfaces/IStrategy.sol";
 import {ILiquidityEdge} from "../interfaces/ILiquidityEdge.sol";
 import {ILiquidityNode} from "../interfaces/ILiquidityNode.sol";
-import {IUnderlyingAsset} from "../interfaces/IUnderlyingAsset.sol";
-import {UnderlyingAsset} from "./UnderlyingAsset.sol";
+import {IUnderlyingToken} from "../interfaces/IUnderlyingToken.sol";
+import {UnderlyingToken} from "./UnderlyingToken.sol";
 
 using EnumerableSet for EnumerableSet.AddressSet;
 using SafeERC20 for IERC20;
 
-abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingAsset, ILiquidityNode {
+abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, ILiquidityNode {
     /// @custom:storage-location erc7201:quiet-finance.storage.LiquidityNode;
     struct Storage {
         EnumerableSet.AddressSet strategies;
@@ -32,10 +32,10 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingAsset, IL
         bytes calldata data
     ) external payable restricted returns (uint256 navDelta) {
         require(_getStorage().strategies.contains(address(strategy)));
-        if (amount == 0) amount = _asset.balanceOf(address(this));
+        if (amount == 0) amount = _token.balanceOf(address(this));
 
         uint256 navBefore = strategy.nav();
-        _asset.safeTransfer(address(strategy), amount);
+        _token.safeTransfer(address(strategy), amount);
         strategy.deposit(amount, data);
         navDelta = strategy.nav() - navBefore;
 
@@ -64,14 +64,14 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingAsset, IL
         bytes calldata data
     ) external payable restricted {
         require(_getStorage().liquidityEdges.contains(address(liquidityEdge)));
-        if (amount == 0) amount = _asset.balanceOf(address(this));
+        if (amount == 0) amount = _token.balanceOf(address(this));
 
-        _asset.safeTransfer(address(liquidityEdge), amount);
+        _token.safeTransfer(address(liquidityEdge), amount);
         liquidityEdge.transfer{value: nativeAmount}(amount, data);
     }
 
     function addLiquidityEdge(address liquidityEdge) external restricted {
-        require(IUnderlyingAsset(liquidityEdge).asset() == _asset, UnsupportedAsset());
+        require(IUnderlyingToken(liquidityEdge).token() == _token, UnsupportedToken());
         _getStorage().liquidityEdges.add(liquidityEdge);
         emit LiquidityEdgeAdded(liquidityEdge);
     }
@@ -82,7 +82,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingAsset, IL
     }
 
     function addStrategy(address strategy) external restricted {
-        require(IUnderlyingAsset(strategy).asset() == _asset, UnsupportedAsset());
+        require(IUnderlyingToken(strategy).token() == _token, UnsupportedToken());
 
         _getStorage().strategies.add(strategy);
         emit StrategyAdded(strategy);

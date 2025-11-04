@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Test} from "forge-std/Test.sol";
 
 import "./test/utils.sol" as $;
-import {MockAsset as USDC} from "./test/MockAsset.sol";
+import {MockToken as USDC} from "./test/MockToken.sol";
 import {qUSD} from "./tokens/qUSD.sol";
 import {sqUSD} from "./tokens/sqUSD.sol";
 import {Gateway} from "./Gateway.sol";

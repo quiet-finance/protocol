@@ -5,22 +5,22 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {MockProtocol} from "../test/MockProtocol.sol";
 import {Strategy} from "../base/Strategy.sol";
-import {UnderlyingAsset} from "../base/UnderlyingAsset.sol";
+import {UnderlyingToken} from "../base/UnderlyingToken.sol";
 
 contract MockStrategy is Strategy {
     MockProtocol public protocol;
 
-    constructor(IERC20 asset) UnderlyingAsset(asset) {}
+    constructor(IERC20 token) UnderlyingToken(token) {}
 
     function initialize(address initialAuthority) public initializer {
         __AccessManaged_init(initialAuthority);
 
-        protocol = new MockProtocol(_asset);
-        _asset.approve(address(protocol), type(uint256).max);
+        protocol = new MockProtocol(_token);
+        _token.approve(address(protocol), type(uint256).max);
     }
 
     function nav() external view returns (uint256) {
-        return _asset.balanceOf(address(protocol));
+        return _token.balanceOf(address(protocol));
     }
 
     function _deposit(uint256 amount, bytes calldata) internal override {

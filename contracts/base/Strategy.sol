@@ -44,8 +44,8 @@ abstract contract Strategy is AccessManagedUpgradeable, UnderlyingToken, IStrate
         return _getStorage().oracle;
     }
 
-    function _getAssetAmount(uint256 tokenAmount) internal returns (uint256 assetAmount) {
-        assetAmount = _getStorage().oracle.getAssetAmount(tokenAmount);
+    function _getAssetAmount(uint256 tokenAmount) internal returns (uint256) {
+        return _getStorage().oracle.getAssetAmount(tokenAmount);
     }
 
     function _deposit(uint256 amount, bytes calldata data) internal virtual;

@@ -2,5 +2,5 @@
 pragma solidity ^0.8.27;
 
 interface IOracle {
-    function getAssetAmount(uint256 tokenAmount) external;
+    function getAssetAmount(uint256 tokenAmount) external returns (uint256);
 }

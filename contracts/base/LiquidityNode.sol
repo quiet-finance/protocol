@@ -32,10 +32,10 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, IL
         bytes calldata data
     ) external payable restricted returns (uint256 navDelta) {
         require(_getStorage().strategies.contains(address(strategy)));
-        if (amount == 0) amount = _token.balanceOf(address(this));
+        if (amount == 0) amount = token.balanceOf(address(this));
 
         uint256 navBefore = strategy.nav();
-        _token.safeTransfer(address(strategy), amount);
+        token.safeTransfer(address(strategy), amount);
         strategy.deposit(amount, data);
         navDelta = strategy.nav() - navBefore;
 
@@ -57,21 +57,21 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, IL
         emit Exit(strategy, amount, navDelta);
     }
 
-    function transferLiquidity(
+    function route(
         ILiquidityEdge liquidityEdge,
         uint256 nativeAmount,
         uint256 amount,
         bytes calldata data
     ) external payable restricted {
         require(_getStorage().liquidityEdges.contains(address(liquidityEdge)));
-        if (amount == 0) amount = _token.balanceOf(address(this));
+        if (amount == 0) amount = token.balanceOf(address(this));
 
-        _token.safeTransfer(address(liquidityEdge), amount);
-        liquidityEdge.transfer{value: nativeAmount}(amount, data);
+        token.safeTransfer(address(liquidityEdge), amount);
+        liquidityEdge.route{value: nativeAmount}(amount, data);
     }
 
     function addLiquidityEdge(address liquidityEdge) external restricted {
-        require(IUnderlyingToken(liquidityEdge).token() == _token, UnsupportedToken());
+        require(IUnderlyingToken(liquidityEdge).token() == token, UnsupportedToken());
         _getStorage().liquidityEdges.add(liquidityEdge);
         emit LiquidityEdgeAdded(liquidityEdge);
     }
@@ -82,7 +82,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, IL
     }
 
     function addStrategy(address strategy) external restricted {
-        require(IUnderlyingToken(strategy).token() == _token, UnsupportedToken());
+        require(IUnderlyingToken(strategy).token() == token, UnsupportedToken());
 
         _getStorage().strategies.add(strategy);
         emit StrategyAdded(strategy);

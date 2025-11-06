@@ -5,13 +5,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IUnderlyingToken} from "../interfaces/IUnderlyingToken.sol";
 
 abstract contract UnderlyingToken is IUnderlyingToken {
-    IERC20 immutable _token;
+    IERC20 public immutable token;
 
     constructor(IERC20 token_) {
-        _token = token_;
-    }
-
-    function token() external view returns (IERC20) {
-        return _token;
+        token = token_;
     }
 }

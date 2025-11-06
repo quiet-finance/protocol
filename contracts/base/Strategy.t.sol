@@ -15,12 +15,12 @@ contract MockStrategy is Strategy {
     function initialize(address initialAuthority) public initializer {
         __AccessManaged_init(initialAuthority);
 
-        protocol = new MockProtocol(_token);
-        _token.approve(address(protocol), type(uint256).max);
+        protocol = new MockProtocol(token);
+        token.approve(address(protocol), type(uint256).max);
     }
 
     function nav() external view returns (uint256) {
-        return _token.balanceOf(address(protocol));
+        return token.balanceOf(address(protocol));
     }
 
     function _deposit(uint256 amount, bytes calldata) internal override {

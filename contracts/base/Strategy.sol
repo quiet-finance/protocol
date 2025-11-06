@@ -31,7 +31,7 @@ abstract contract Strategy is AccessManagedUpgradeable, UnderlyingToken, IStrate
 
     function withdraw(uint256 amount, bytes calldata data) external restricted {
         _withdraw(amount, data);
-        _token.safeTransfer(msg.sender, amount);
+        token.safeTransfer(msg.sender, amount);
     }
 
     function setOralce(IOracle newOracle) external restricted {

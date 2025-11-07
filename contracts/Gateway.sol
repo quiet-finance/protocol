@@ -32,7 +32,6 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
     address immutable sqUSD;
     uint256 immutable _scale;
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(IERC20 USDC_, IqUSD qUSD_, address sqUSD_) {
         _disableInitializers();
 

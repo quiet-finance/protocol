@@ -8,7 +8,6 @@ import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {IqUSD} from "../interfaces/IqUSD.sol";
 
 contract qUSD is Initializable, ERC20PermitUpgradeable, AccessManagedUpgradeable, IqUSD {
-    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }

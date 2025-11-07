@@ -6,6 +6,11 @@ import {IUnderlyingToken} from "./IUnderlyingToken.sol";
 import {IUnderlyingToken} from "./IUnderlyingToken.sol";
 
 interface ILiquidityEdge {
+    enum Op {
+        SWAP,
+        BRIDGE_EVM2EVM
+    }
+
     event LiquidityRouted(bytes32 indexed path, uint256 amountIn, uint256 amountOut);
 
     function route(uint256 amount, bytes calldata data) external payable;

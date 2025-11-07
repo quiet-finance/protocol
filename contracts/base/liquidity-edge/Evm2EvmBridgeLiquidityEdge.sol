@@ -18,7 +18,7 @@ abstract contract Evm2EvmBridgeLiquidityEdge is LiquidityEdge {
     constructor(IUnderlyingToken node_, uint256 toChainId_) {
         node = node_;
         toChainId = toChainId_;
-        path = keccak256(abi.encodePacked("bridge", node.token(), block.chainid, toChainId));
+        path = keccak256(abi.encodePacked(Op.BRIDGE_EVM2EVM, node.token(), block.chainid, toChainId));
     }
 
     function route(uint256 amountIn, bytes calldata data) external payable override restricted {

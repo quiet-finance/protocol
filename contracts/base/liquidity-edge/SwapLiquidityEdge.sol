@@ -25,7 +25,11 @@ abstract contract SwapLiquidityEdge is LiquidityEdge {
 
         uint256 amountOut = _swap(amountIn, data);
         nodeOut.token().safeTransfer(address(nodeOut), amountOut);
-        emit LiquidityRouted(keccak256(abi.encodePacked("swap", nodeIn.token(), nodeOut.token())), amountIn, amountOut);
+        emit LiquidityRouted(
+            keccak256(abi.encodePacked(Op.SWAP, nodeIn.token(), nodeOut.token())),
+            amountIn,
+            amountOut
+        );
     }
 
     function canProcessRoute(IUnderlyingToken from) external view override returns (bool) {

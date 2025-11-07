@@ -94,7 +94,7 @@ contract LiquidityNodeTest is Test {
         vm.assertEq(strategies[0], address(strategy), "Strategy should be added to list");
 
         // strategy with different token
-        vm.expectRevert(ILiquidityNode.UnsupportedToken.selector);
+        vm.expectRevert(ILiquidityNode.UnsupportedStrategy.selector);
         node.addStrategy(address(otherStrategy));
     }
 
@@ -141,7 +141,7 @@ contract LiquidityNodeTest is Test {
         vm.assertEq(liquidityEdges[0], address(edge), "LiquidityEdge should be added to list");
 
         // LiquidityEdge with different token
-        vm.expectRevert(ILiquidityNode.UnsupportedToken.selector);
+        vm.expectRevert(ILiquidityNode.UnsupportedLiquidityNode.selector);
         node.addLiquidityEdge(address(otherEdge));
     }
 

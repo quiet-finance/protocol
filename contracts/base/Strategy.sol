@@ -40,7 +40,7 @@ abstract contract Strategy is AccessManagedUpgradeable, UnderlyingToken, IStrate
         emit OracleUpdated(address(oldOracle), address(newOracle));
     }
 
-    function oracle() public view returns (IOracle) {
+    function oracle() external view returns (IOracle) {
         return _getStorage().oracle;
     }
 

@@ -71,7 +71,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, IL
     }
 
     function addLiquidityEdge(address liquidityEdge) external restricted {
-        require(IUnderlyingToken(liquidityEdge).token() == token, UnsupportedToken());
+        require(ILiquidityEdge(liquidityEdge).canProcessRoute(this), UnsupportedLiquidityNode());
         _getStorage().liquidityEdges.add(liquidityEdge);
         emit LiquidityEdgeAdded(liquidityEdge);
     }
@@ -82,7 +82,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, IL
     }
 
     function addStrategy(address strategy) external restricted {
-        require(IUnderlyingToken(strategy).token() == token, UnsupportedToken());
+        require(IUnderlyingToken(strategy).token() == token, UnsupportedStrategy());
 
         _getStorage().strategies.add(strategy);
         emit StrategyAdded(strategy);

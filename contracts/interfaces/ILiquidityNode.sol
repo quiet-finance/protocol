@@ -16,5 +16,6 @@ interface ILiquidityNode is INavProvider, IUnderlyingToken {
     error NavDeltaTooHigh(uint256 navDelta);
     error NavDeltaTooLow(uint256 navDelta);
     error NavShouldBeZero();
-    error UnsupportedToken();
+    error UnsupportedLiquidityNode();
+    error UnsupportedStrategy();
 }

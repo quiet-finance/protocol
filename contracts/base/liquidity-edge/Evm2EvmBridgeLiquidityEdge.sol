@@ -36,4 +36,8 @@ abstract contract Evm2EvmBridgeLiquidityEdge is LiquidityEdge {
         if (caller == address(node)) return;
         super._checkCanCall(caller, data);
     }
+
+    function _toAddress() internal view returns (address) {
+        return address(this);
+    }
 }

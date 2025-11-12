@@ -33,7 +33,7 @@ abstract contract SwapLiquidityEdge is LiquidityEdge {
     }
 
     function canProcessRoute(IUnderlyingToken from) external view override returns (bool) {
-        return (from == nodeA || from == nodeB);
+        return from == nodeA || from == nodeB;
     }
 
     function _swap(uint256 amount, bytes calldata data) internal virtual returns (uint256 amountOut);

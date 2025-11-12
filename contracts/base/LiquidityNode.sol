@@ -32,7 +32,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, IL
         bytes calldata data
     ) external payable restricted returns (uint256 navDelta) {
         require(_getStorage().strategies.contains(address(strategy)));
-        if (amount == 0) amount = token.balanceOf(address(this));
+        if (amount == type(uint256).max) amount = token.balanceOf(address(this));
 
         uint256 navBefore = strategy.nav();
         token.safeTransfer(address(strategy), amount);
@@ -64,7 +64,7 @@ abstract contract LiquidityNode is AccessManagedUpgradeable, UnderlyingToken, IL
         bytes calldata data
     ) external payable restricted {
         require(_getStorage().liquidityEdges.contains(address(liquidityEdge)));
-        if (amount == 0) amount = token.balanceOf(address(this));
+        if (amount == type(uint256).max) amount = token.balanceOf(address(this));
 
         token.safeTransfer(address(liquidityEdge), amount);
         liquidityEdge.route{value: nativeAmount}(amount, data);

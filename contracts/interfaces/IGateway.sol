@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import {IqUSD} from "./IqUSD.sol";
+
 interface IGateway {
     struct RedeemRequestData {
         address requester;
@@ -22,4 +24,6 @@ interface IGateway {
 
     error RedeemRequestAlreadyProcessed();
     error RedeemRequestNotReady();
+
+    function finishRebalance(uint256 navAfterRebalance, int256 assetsDelta) external;
 }

@@ -3,9 +3,9 @@ pragma solidity ^0.8.27;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Test} from "forge-std/Test.sol";
+import {MockERC20} from "forge-std/src/mocks/MockERC20.sol";
 
 import "../test/utils.sol" as $;
-import {MockToken} from "../test/MockToken.sol";
 import {MockProtocol} from "../test/MockProtocol.sol";
 import {MockLiquidityEdge} from "../test/MockLiquidityEdge.sol";
 import {MockStrategy} from "./Strategy.t.sol";
@@ -25,18 +25,18 @@ contract LiquidityNodeTest is Test {
     LiquidityNode node;
     MockStrategy strategy;
     MockStrategy otherStrategy;
-    MockToken token;
-    MockToken otherToken;
+    MockERC20 token;
+    MockERC20 otherToken;
     MockLiquidityEdge edge;
     MockLiquidityEdge otherEdge;
 
     function setUp() external {
-        token = new MockToken();
-        token.mint(address(this), 1000);
+        token = deployMockERC20("token", "token", 18);
+        deal(address(token), address(this), 1000);
 
-        otherToken = new MockToken();
+        otherToken = deployMockERC20("token", "token", 18);
 
-        LiquidityNode nodeImpl = new MockLiquidityNode(token);
+        LiquidityNode nodeImpl = new MockLiquidityNode(IERC20(address(token)));
         node = LiquidityNode(
             $.proxy.deploy(
                 address(nodeImpl),
@@ -47,7 +47,7 @@ contract LiquidityNodeTest is Test {
 
         strategy = MockStrategy(
             $.proxy.deploy(
-                address(new MockStrategy(token)),
+                address(new MockStrategy(IERC20(address(token)))),
                 address(this),
                 abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
@@ -55,7 +55,7 @@ contract LiquidityNodeTest is Test {
 
         otherStrategy = MockStrategy(
             $.proxy.deploy(
-                address(new MockStrategy(otherToken)),
+                address(new MockStrategy(IERC20(address(otherToken)))),
                 address(this),
                 abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
@@ -63,7 +63,7 @@ contract LiquidityNodeTest is Test {
 
         edge = MockLiquidityEdge(
             $.proxy.deploy(
-                address(new MockLiquidityEdge(token)),
+                address(new MockLiquidityEdge(IERC20(address(token)))),
                 address(this),
                 abi.encodeCall(MockLiquidityEdge.initialize, ($.accessManager.addr()))
             )
@@ -71,7 +71,7 @@ contract LiquidityNodeTest is Test {
 
         otherEdge = MockLiquidityEdge(
             $.proxy.deploy(
-                address(new MockLiquidityEdge(otherToken)),
+                address(new MockLiquidityEdge(IERC20(address(otherToken)))),
                 address(this),
                 abi.encodeCall(MockStrategy.initialize, ($.accessManager.addr()))
             )
@@ -117,7 +117,7 @@ contract LiquidityNodeTest is Test {
 
         // removeStrategy with NAV
         node.addStrategy(address(strategy));
-        token.mint(address(strategy), 1);
+        deal(address(token), address(strategy), 1);
         $.accessManager.grantAccess(address(strategy), strategy.deposit.selector);
         strategy.deposit(1, bytes(""));
 

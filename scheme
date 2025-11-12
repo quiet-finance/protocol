@@ -1,0 +1,36 @@
+---
+config:
+  layout: elk
+---
+flowchart LR
+ subgraph Ethereum["Ethereum"]
+        USDe.eth["USDe"]
+        USDC.eth["USDC"]
+        USDT.eth["USDT"]
+        Pendle.eth["Pendle"]
+        Morpho.eth["Morpho Earn"]
+  end
+ subgraph Plasma["Plasma"]
+        USDT.plasma["USDT"]
+        Euler.plasma["Euler Earn"]
+        Vault.plasma["Plasma Vault"]
+        Pendle.plasma["Pendle"]
+  end
+ subgraph HyperEVM["HyperEVM"]
+        USDC.hyper["USDC"]
+        USDT.hyper["USDT"]
+        Morpho.hyper["Morpho Earn"]
+        Pendle.hyper["Pendle"]
+  end
+    Gateway(("Gateway")) --> USDC.eth
+    USDe.eth <--> USDC.eth
+    USDC.eth <--> USDT.eth
+    USDC.eth --> Pendle.eth & Morpho.eth
+    USDe.eth --> Pendle.eth
+    USDT.eth --> Morpho.eth
+    USDT.plasma --> Euler.plasma & Vault.plasma & Pendle.plasma
+    USDC.hyper --> Morpho.hyper
+    USDT.hyper --> Pendle.hyper
+    USDT.eth -- Bridge --> USDT.plasma & USDT.hyper
+    USDC.eth -- Bridge --> USDC.hyper
+    Morpho.hyper --> n1["Untitled Node"]

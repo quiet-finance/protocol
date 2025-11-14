@@ -8,38 +8,53 @@ config:
 ---
 flowchart TB
  subgraph ethereum["Ethereum"]
-        Gateway(["Quiet Finance"])
-        USDC@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "t", w: 60, h: 60, constraint: "on" }
-        USDC.in@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "t", w: 60, h: 60, constraint: "on" }
-
+    subgraph swap["Other stables deposit"]
         USDT.eth@{ img: "https://upload.wikimedia.org/wikipedia/commons/0/01/USDT_Logo.png", pos: "t", w: 60, h: 60, constraint: "on"}
+        USDe.eth@{ img: "https://s2.coinmarketcap.com/static/img/coins/64x64/30171.png", pos: "t", w: 60, h: 60, constraint: "on"}
+        USD((("USD*")))
+    end
+        Gateway(["Liquidity hub"])
+        USDC@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "t", w: 60, h: 60, constraint: "on" }
+        USDC.in@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "t", w: 60, h: 60, constraint: "on", "label": "Deposit USDC" }
+        USDC.out@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "b", w: 60, h: 60, constraint: "on", "label": "Withdraw USDC" }
+
         Liquid.eth["Liquid strategies"]@{shape: "docs"}
         ILliquid.eth["Illiquid strategies"]@{shape: "st-rect"}
 
-        USDC.in --> Gateway --> USDC
-        USDC -->|"Swap (via 1inch)"| USDT.eth
-        USDC & USDT.eth .-> Liquid.eth & ILliquid.eth
+        USDC.in --> Gateway --> LiquidityNode.eth 
+        swap -->|Swap| Gateway
+        Gateway --> USDC.out
+
+        LiquidityNode.eth["Liquidity Node"] --> USDC  ..-> Liquid.eth & ILliquid.eth
+        Liquid.eth & ILliquid.eth ..->|Yield| LiquidityNode.eth
+
   end
- subgraph l2["L2 chain (e.g. Base)"]
+ subgraph l2["Chain 1"]
         USDC.l2@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "t", w: 60, h: 60, constraint: "on" }
-        USDT.l2@{ img: "https://upload.wikimedia.org/wikipedia/commons/0/01/USDT_Logo.png", pos: "t", w: 60, h: 60, constraint: "on"}
         Liquid.l2["Liquid strategies"]@{shape: "docs"}
         ILliquid.l2["Illiquid strategies"]@{shape: "st-rect"}
 
-        USDC.l2 --> Liquid.l2 & ILliquid.l2
-        USDT.l2 --> Liquid.l2 & ILliquid.l2
+        LiquidityNode.l2["Liquidity Node"] --> USDC.l2 --> Liquid.l2 & ILliquid.l2
+        Liquid.l2 & ILliquid.l2 ..->|Yield| LiquidityNode.l2
   end
- subgraph evm["EVM chain (e.g HyperEVM)"]
+ subgraph evm["Chain 2"]
         USDC.evm@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "t", w: 60, h: 60, constraint: "on" }
-        USDT.evm@{ img: "https://upload.wikimedia.org/wikipedia/commons/0/01/USDT_Logo.png", pos: "t", w: 60, h: 60, constraint: "on"}
         Liquid.evm["Liquid strategies"]@{shape: "docs"}
         ILliquid.evm["Illiquid strategies"]@{shape: "st-rect"}
-
-        USDC.evm & USDT.evm ..-> Liquid.evm & ILliquid.evm
+        LiquidityNode.evm["Liquidity Node"] --> USDC.evm  ..-> Liquid.evm & ILliquid.evm
+        Liquid.evm & ILliquid.evm ..->|Yield| LiquidityNode.evm
   end
-
-  USDC -->|Via CCTP| USDC.l2 & USDC.evm
-  USDT.eth -->|Via USDT0| USDT.l2 & USDT.evm
+ subgraph other["Chain ..."]
+        USDC.other@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png", pos: "t", w: 60, h: 60, constraint: "on" }
+        Liquid.other["Liquid strategies"]@{shape: "docs"}
+        ILliquid.other["Illiquid strategies"]@{shape: "st-rect"}
+        LiquidityNode.other["Liquidity Node"] --> USDC.other  ..-> Liquid.other & ILliquid.other
+        Liquid.other & ILliquid.other ..->|Yield| LiquidityNode.other
+  end
+  LiquidityNode.eth -->|Via CCTP| LiquidityNode.l2 & LiquidityNode.evm & LiquidityNode.other
 
   sqUSD@{ img: "https://raw.githubusercontent.com/quiet-finance/brand-assets/refs/heads/main/sqUSD.png", pos: "b", w: 60, h: 60, constraint: "on", "label": "sqUSD" }
-  Liquid.eth & ILliquid.eth & Liquid.evm & ILliquid.evm & Liquid.l2 & ILliquid.l2 .->|Yield| sqUSD
+  qUSD@{ img: "https://raw.githubusercontent.com/quiet-finance/brand-assets/refs/heads/main/qUSD.png", pos: "b", w: 60, h: 60, constraint: "on", "label": "qUSD" }
+  
+  LiquidityNode.eth & LiquidityNode.other & LiquidityNode.evm & LiquidityNode.l2 .->|Yield| sqUSD
+  sqUSD -->|Unstake| qUSD -->|Burn| Gateway

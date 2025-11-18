@@ -6,6 +6,11 @@ import { configVariable } from "hardhat/config";
 const config: HardhatUserConfig = {
   plugins: [hardhatToolboxViemPlugin],
   solidity: {
+    npmFilesToBuild: [
+      "@openzeppelin/contracts/access/manager/AccessManager.sol",
+      "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol",
+      "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol",
+    ],
     profiles: {
       default: {
         version: "0.8.28",
@@ -25,6 +30,13 @@ const config: HardhatUserConfig = {
     hardhatMainnet: {
       type: "edr-simulated",
       chainType: "l1",
+    },
+    sepoliaFork: {
+      type: "edr-simulated",
+      chainType: "l1",
+      forking: {
+        url: configVariable("SEPOLIA_RPC_URL"),
+      }
     },
     hardhatOp: {
       type: "edr-simulated",

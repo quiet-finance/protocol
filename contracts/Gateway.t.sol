@@ -10,7 +10,7 @@ import {qUSD} from "./tokens/qUSD.sol";
 import {sqUSD} from "./tokens/sqUSD.sol";
 import {Gateway} from "./Gateway.sol";
 
-contract LiquidityNodeTest is Test {
+contract GatewayTest is Test {
     MockERC20 usdc;
     qUSD qusd;
     sqUSD squsd;
@@ -36,7 +36,7 @@ contract LiquidityNodeTest is Test {
 
         gateway = Gateway(
             $.proxy.deploy(
-                address(new Gateway(IERC20(address(usdc)), qusd, address(squsd))),
+                address(new Gateway(IERC20(address(usdc)), qusd, squsd)),
                 address(this),
                 abi.encodeCall(
                     Gateway.initialize,

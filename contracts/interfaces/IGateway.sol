@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {IqUSD} from "./IqUSD.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
+import {IMintableERC20} from "./IMintableERC20.sol";
 
 interface IGateway {
     struct RedeemRequestData {
@@ -25,6 +28,14 @@ interface IGateway {
 
     error RedeemRequestAlreadyProcessed();
     error RedeemRequestNotReady();
+
+    function asset() external returns (IERC20);
+
+    function qUSD() external returns (IMintableERC20);
+
+    function sqUSD() external returns (IERC4626);
+
+    function issue(address to, uint256 amount) external returns (uint256 issueAmount);
 
     function startRebalance(int256 assetsDelta) external;
 

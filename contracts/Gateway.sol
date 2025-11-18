@@ -2,12 +2,13 @@
 pragma solidity ^0.8.27;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
 import {BpsMath} from "./libraries/BpsMath.sol";
-import {IqUSD} from "./interfaces/IqUSD.sol";
+import {IMintableERC20} from "./interfaces/IMintableERC20.sol";
 import {IGateway} from "./interfaces/IGateway.sol";
 
 using BpsMath for uint256;
@@ -29,14 +30,15 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
     /// @dev keccak256(abi.encode(uint256(keccak256("quiet-finance.storage.Gateway")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant STORAGE_LOCATION = 0x6c7c638069ba33d959e62c9f88f4b296b9b20152cbd15f932bd72f3052915f00;
 
-    IERC20 immutable asset;
-    IqUSD immutable qUSD;
-    address immutable sqUSD;
+    IERC20 public immutable asset;
+    IMintableERC20 public immutable qUSD;
+    IERC4626 public immutable sqUSD;
     uint256 immutable _scale;
 
-    constructor(IERC20 asset_, IqUSD qUSD_, address sqUSD_) {
+    constructor(IERC20 asset_, IMintableERC20 qUSD_, IERC4626 sqUSD_) {
         _disableInitializers();
 
+        require(address(sqUSD_.asset()) == address(qUSD_));
         asset = asset_;
         qUSD = qUSD_;
         sqUSD = sqUSD_;
@@ -73,12 +75,12 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
         emit TreasuryUpdated(address(0), treasury_);
     }
 
-    function issue(address to, uint256 amount) external {
+    function issue(address to, uint256 amount) external returns (uint256 issueAmount) {
         (uint256 fee, uint256 amountIn) = amount.takeBps(_getStorage().mintFeeBps);
         asset.safeTransferFrom(msg.sender, address(this), amountIn);
         asset.safeTransferFrom(msg.sender, _getStorage().treasury, fee);
 
-        uint256 issueAmount = amountIn * _scale;
+        issueAmount = amountIn * _scale;
         qUSD.mint(to, issueAmount);
         emit Issue(msg.sender, to, amount, issueAmount);
     }
@@ -136,9 +138,9 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
         if (newNav > navBeforeRebalance) {
             (uint256 fee, uint256 yield) = (newNav - navBeforeRebalance).takeBps(_getStorage().performanceFeeBps);
             asset.transfer(_getStorage().treasury, fee);
-            qUSD.mint(sqUSD, yield);
+            qUSD.mint(address(sqUSD), yield);
         } else if (navBeforeRebalance > newNav) {
-            qUSD.burn(sqUSD, navBeforeRebalance - newNav);
+            qUSD.burn(address(sqUSD), navBeforeRebalance - newNav);
         }
         _getStorage().nav = newNav;
 

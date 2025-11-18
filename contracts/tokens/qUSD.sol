@@ -5,9 +5,9 @@ import {ERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
-import {IqUSD} from "../interfaces/IqUSD.sol";
+import {IMintableERC20} from "../interfaces/IMintableERC20.sol";
 
-contract qUSD is Initializable, ERC20PermitUpgradeable, AccessManagedUpgradeable, IqUSD {
+contract qUSD is Initializable, ERC20PermitUpgradeable, AccessManagedUpgradeable, IMintableERC20 {
     constructor() {
         _disableInitializers();
     }

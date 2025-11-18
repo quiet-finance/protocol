@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -10,23 +11,48 @@ import {IGateway} from "./interfaces/IGateway.sol";
 using SafeERC20 for IERC20;
 
 contract Router {
-    function issue(IGateway gateway, uint256 amount) external {
-        IERC20 asset = gateway.asset();
+    IGateway gateway;
+    IERC20 asset;
+    IERC20 qUSD;
+    IERC4626 sqUSD;
 
-        asset.safeTransferFrom(msg.sender, address(this), amount);
-        asset.forceApprove(address(gateway), amount);
-        gateway.issue(msg.sender, amount);
+    struct PermitData {
+        uint256 deadline;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
     }
 
-    function issueAndStake(IGateway gateway, uint256 amount) external {
-        IERC20 asset = gateway.asset();
-        IERC4626 sqUSD = gateway.sqUSD();
+    constructor(IGateway gateway_) {
+        gateway = gateway_;
 
-        asset.safeTransferFrom(msg.sender, address(this), amount);
-        asset.forceApprove(address(gateway), amount);
-        uint256 issueAmount = gateway.issue(address(this), amount);
+        asset = gateway.asset();
+        asset.forceApprove(address(gateway), type(uint256).max);
 
-        gateway.qUSD().approve(address(sqUSD), issueAmount);
-        sqUSD.deposit(issueAmount, msg.sender);
+        qUSD = gateway.qUSD();
+        qUSD.approve(address(sqUSD), type(uint256).max);
+
+        sqUSD = gateway.sqUSD();
+    }
+
+    function deposit(uint256 amountIn, bool stake, PermitData calldata permit) public returns (uint256 amountOut) {
+        if (permit.deadline != 0) {
+            IERC20Permit(address(asset)).permit(
+                msg.sender,
+                address(this),
+                amountIn,
+                permit.deadline,
+                permit.v,
+                permit.r,
+                permit.s
+            );
+        }
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
+
+        if (stake) {
+            amountOut = sqUSD.mint(gateway.issue(address(this), amountIn), msg.sender);
+        } else {
+            amountOut = gateway.issue(msg.sender, amountIn);
+        }
     }
 }

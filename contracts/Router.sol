@@ -12,9 +12,9 @@ using SafeERC20 for IERC20;
 
 contract Router {
     IGateway gateway;
-    IERC20 asset;
-    IERC20 qUSD;
-    IERC4626 sqUSD;
+    IERC20 immutable asset;
+    IERC20 immutable qUSD;
+    IERC4626 immutable sqUSD;
 
     struct PermitData {
         uint256 deadline;
@@ -27,12 +27,11 @@ contract Router {
         gateway = gateway_;
 
         asset = gateway.asset();
-        asset.forceApprove(address(gateway), type(uint256).max);
-
         qUSD = gateway.qUSD();
-        qUSD.approve(address(sqUSD), type(uint256).max);
-
         sqUSD = gateway.sqUSD();
+
+        asset.forceApprove(address(gateway), type(uint256).max);
+        qUSD.approve(address(sqUSD), type(uint256).max);
     }
 
     function deposit(uint256 amountIn, bool stake, PermitData calldata permit) public returns (uint256 amountOut) {

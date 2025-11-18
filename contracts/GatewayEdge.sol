@@ -20,13 +20,13 @@ contract GatewayEdge is LiquidityEdge {
     }
 
     function route(uint256 amountIn, bytes calldata data) external payable {
-        (uint256 navAfterRebalance, int256 assetsDelta) = abi.decode(data, (uint256, int256));
+        int256 assetsDelta = abi.decode(data, (int256));
         if (assetsDelta < 0) {
             require(amountIn == uint256(-assetsDelta));
             node.token().safeTransfer(address(gateway), amountIn);
         }
 
-        gateway.finishRebalance(navAfterRebalance, assetsDelta);
+        gateway.startRebalance(assetsDelta);
 
         if (assetsDelta > 0) {
             require(amountIn == 0);

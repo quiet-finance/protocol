@@ -119,22 +119,30 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
         emit Redeem(requestId, redeemRequest.recipient, redeemRequest.amount);
     }
 
-    function finishRebalance(uint256 navAfterRebalance, int256 assetsDelta) external restricted {
-        uint256 nav = _getStorage().nav;
-        if (navAfterRebalance > nav) {
-            (uint256 fee, uint256 yield) = (navAfterRebalance - nav).takeBps(_getStorage().performanceFeeBps);
-            asset.transfer(_getStorage().treasury, fee);
-            qUSD.mint(sqUSD, yield);
-        } else if (nav > navAfterRebalance) {
-            qUSD.burn(sqUSD, nav - navAfterRebalance);
-        }
-
+    function startRebalance(int256 assetsDelta) external restricted {
         if (assetsDelta > 0) {
             asset.transfer(msg.sender, uint256(assetsDelta));
         }
-        nav = uint256(int256(navAfterRebalance) + assetsDelta);
 
-        emit RebalanceFinished(navAfterRebalance, assetsDelta);
+        uint256 oldNav = _getStorage().nav;
+        uint256 navBeforeRebalance = uint256(int256(oldNav) + assetsDelta);
+        _getStorage().nav = navBeforeRebalance;
+
+        emit RebalanceStarted(oldNav, navBeforeRebalance);
+    }
+
+    function finishRebalance(uint256 newNav) external restricted {
+        uint256 navBeforeRebalance = _getStorage().nav;
+        if (newNav > navBeforeRebalance) {
+            (uint256 fee, uint256 yield) = (newNav - navBeforeRebalance).takeBps(_getStorage().performanceFeeBps);
+            asset.transfer(_getStorage().treasury, fee);
+            qUSD.mint(sqUSD, yield);
+        } else if (navBeforeRebalance > newNav) {
+            qUSD.burn(sqUSD, navBeforeRebalance - newNav);
+        }
+        _getStorage().nav = newNav;
+
+        emit RebalanceFinished(navBeforeRebalance, newNav);
     }
 
     function setMaxRedeemableId(uint256 id) external restricted {

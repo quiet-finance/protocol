@@ -15,7 +15,8 @@ interface IGateway {
     event InstantRedeem(address indexed redeemer, address indexed recipient, uint256 amount, uint256 redeemedAmount);
     event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 amount);
     event Redeem(uint256 requestId, address indexed recipient, uint256 amount);
-    event RebalanceFinished(uint256 navAfterRebalance, int256 assetsDelta);
+    event RebalanceStarted(uint256 oldNav, uint256 navBeforeRebalance);
+    event RebalanceFinished(uint256 navBeforeRebalance, uint256 newNav);
     event TreasuryUpdated(address oldTreasury, address newTreasury);
     event MintFeeUpdated(uint256 oldFeeBps, uint256 newFeeBps);
     event InstantRedeemFeeUpdated(uint256 oldFeeBps, uint256 newFeeBps);
@@ -25,5 +26,7 @@ interface IGateway {
     error RedeemRequestAlreadyProcessed();
     error RedeemRequestNotReady();
 
-    function finishRebalance(uint256 navAfterRebalance, int256 assetsDelta) external;
+    function startRebalance(int256 assetsDelta) external;
+
+    function finishRebalance(uint256 newNav) external;
 }

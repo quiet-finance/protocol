@@ -1,14 +1,12 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import accessManagerModule from "./accessManager.ts";
 import qusdModule from "./qUSD.ts";
 
 const sqUSDModule = buildModule("sqUSD", (m) => {
     const proxyAdminOwner = m.getAccount(0);
-    const { accessManager } = m.useModule(accessManagerModule);
     const { qUSD } = m.useModule(qusdModule);
 
     const sqUSDImpl = m.contract("sqUSD", [], { id: "impl" });
-    const initializeCall = m.encodeFunctionCall(sqUSDImpl, "initialize", [qUSD, accessManager]);
+    const initializeCall = m.encodeFunctionCall(sqUSDImpl, "initialize", [qUSD]);
 
     const proxy = m.contract("TransparentUpgradeableProxy", [
         sqUSDImpl,

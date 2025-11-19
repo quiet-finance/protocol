@@ -1,5 +1,5 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import accessManagerModule from "./accessManager.ts";
+import accessManagerModule, { ROLES } from "./accessManager.ts";
 import qUSDModule from "./qUSD.ts";
 import sqUSDModule from "./sqUSD.ts";
 
@@ -30,6 +30,16 @@ const GatewayModule = buildModule("Gateway", (m) => {
     );
     const proxyAdmin = m.contractAt("ProxyAdmin", proxyAdminAddress, { id: "proxyAdmin" });
     const gateway = m.contractAt("Gateway", proxy, { id: "proxy" });
+
+    m.call(accessManager, "grantRole", [ROLES.QUSD_MINTER, gateway, 0])
+    m.call(accessManager, "setTargetFunctionRole", [
+        qUSD,
+        [
+            "0x40c10f19", // mint(address,uint256)
+            "0x9dc29fac", // burn(address,uint256)
+        ],
+        ROLES.QUSD_MINTER
+    ])
 
     return { gateway, proxyAdmin };
 });

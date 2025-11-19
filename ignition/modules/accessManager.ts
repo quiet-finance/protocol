@@ -1,5 +1,9 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
+export const ROLES = {
+    QUSD_MINTER: 1
+}
+
 const accessManagerModule = buildModule("AccessManager", (m) => {
     const initialOwner = m.getAccount(0);
 

@@ -6,12 +6,12 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC2
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {IGateway} from "./interfaces/IGateway.sol";
+import {ILiquidityHub} from "./interfaces/ILiquidityHub.sol";
 
 using SafeERC20 for IERC20;
 
 contract Router {
-    IGateway gateway;
+    ILiquidityHub liquidityHub;
     IERC20 immutable asset;
     IERC20 immutable qUSD;
     IERC4626 immutable sqUSD;
@@ -23,14 +23,14 @@ contract Router {
         bytes32 s;
     }
 
-    constructor(IGateway gateway_) {
-        gateway = gateway_;
+    constructor(ILiquidityHub liquidityHub_) {
+        liquidityHub = liquidityHub_;
 
-        asset = gateway.asset();
-        qUSD = gateway.qUSD();
-        sqUSD = gateway.sqUSD();
+        asset = liquidityHub.asset();
+        qUSD = liquidityHub.qUSD();
+        sqUSD = liquidityHub.sqUSD();
 
-        asset.forceApprove(address(gateway), type(uint256).max);
+        asset.forceApprove(address(liquidityHub), type(uint256).max);
         qUSD.approve(address(sqUSD), type(uint256).max);
     }
 
@@ -49,9 +49,9 @@ contract Router {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
 
         if (stake) {
-            amountOut = sqUSD.mint(gateway.issue(address(this), amountIn), msg.sender);
+            amountOut = sqUSD.mint(liquidityHub.issue(address(this), amountIn), msg.sender);
         } else {
-            amountOut = gateway.issue(msg.sender, amountIn);
+            amountOut = liquidityHub.issue(msg.sender, amountIn);
         }
     }
 }

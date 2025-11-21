@@ -3,14 +3,14 @@ import accessManagerModule, { ROLES } from "./accessManager.ts";
 import qUSDModule from "./qUSD.ts";
 import sqUSDModule from "./sqUSD.ts";
 
-const GatewayModule = buildModule("Gateway", (m) => {
+const LiquidityHubModule = buildModule("LiquidityHub", (m) => {
     const proxyAdminOwner = m.getAccount(0);
     const { accessManager } = m.useModule(accessManagerModule);
     const { qUSD } = m.useModule(qUSDModule);
     const { sqUSD } = m.useModule(sqUSDModule);
 
-    const gatewayImpl = m.contract("Gateway", [m.getParameter("ASSET"), qUSD, sqUSD], { id: "impl" });
-    const initializeCall = m.encodeFunctionCall(gatewayImpl, "initialize", [
+    const LiquidityHubImpl = m.contract("LiquidityHub", [m.getParameter("ASSET"), qUSD, sqUSD], { id: "impl" });
+    const initializeCall = m.encodeFunctionCall(LiquidityHubImpl, "initialize", [
         accessManager,
         m.getParameter("TREASURY"),
         10, // 0.1% mint fee
@@ -19,7 +19,7 @@ const GatewayModule = buildModule("Gateway", (m) => {
     ]);
 
     const proxy = m.contract("TransparentUpgradeableProxy", [
-        gatewayImpl,
+        LiquidityHubImpl,
         proxyAdminOwner,
         initializeCall,
     ], { id: "auxiliaryProxy" });
@@ -29,9 +29,9 @@ const GatewayModule = buildModule("Gateway", (m) => {
         "newAdmin",
     );
     const proxyAdmin = m.contractAt("ProxyAdmin", proxyAdminAddress, { id: "proxyAdmin" });
-    const gateway = m.contractAt("Gateway", proxy, { id: "proxy" });
+    const LiquidityHub = m.contractAt("LiquidityHub", proxy, { id: "proxy" });
 
-    m.call(accessManager, "grantRole", [ROLES.QUSD_MINTER, gateway, 0])
+    m.call(accessManager, "grantRole", [ROLES.QUSD_MINTER, LiquidityHub, 0])
     m.call(accessManager, "setTargetFunctionRole", [
         qUSD,
         [
@@ -41,8 +41,8 @@ const GatewayModule = buildModule("Gateway", (m) => {
         ROLES.QUSD_MINTER
     ])
 
-    return { gateway, proxyAdmin };
+    return { LiquidityHub, proxyAdmin };
 });
 
 
-export default GatewayModule;
+export default LiquidityHubModule;

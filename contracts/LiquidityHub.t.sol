@@ -8,13 +8,13 @@ import "./test/utils.sol" as $;
 
 import {qUSD} from "./tokens/qUSD.sol";
 import {sqUSD} from "./tokens/sqUSD.sol";
-import {Gateway} from "./Gateway.sol";
+import {LiquidityHub} from "./LiquidityHub.sol";
 
-contract GatewayTest is Test {
+contract LiquidityHubTest is Test {
     MockERC20 usdc;
     qUSD qusd;
     sqUSD squsd;
-    Gateway gateway;
+    LiquidityHub liquidityHub;
     address user = address(222);
 
     function setUp() external {
@@ -26,20 +26,14 @@ contract GatewayTest is Test {
                 abi.encodeCall(qUSD.initialize, ($.accessManager.addr()))
             )
         );
-        squsd = sqUSD(
-            $.proxy.deploy(
-                address(new sqUSD()),
-                address(this),
-                abi.encodeCall(sqUSD.initialize, (qusd, $.accessManager.addr()))
-            )
-        );
+        squsd = sqUSD($.proxy.deploy(address(new sqUSD()), address(this), abi.encodeCall(sqUSD.initialize, (qusd))));
 
-        gateway = Gateway(
+        liquidityHub = LiquidityHub(
             $.proxy.deploy(
-                address(new Gateway(IERC20(address(usdc)), qusd, squsd)),
+                address(new LiquidityHub(IERC20(address(usdc)), qusd, squsd)),
                 address(this),
                 abi.encodeCall(
-                    Gateway.initialize,
+                    LiquidityHub.initialize,
                     (
                         $.accessManager.addr(),
                         address(777),
@@ -51,56 +45,56 @@ contract GatewayTest is Test {
             )
         );
 
-        $.accessManager.grantAccess(address(qusd), address(gateway), qUSD.mint.selector);
-        $.accessManager.grantAccess(address(qusd), address(gateway), qUSD.burn.selector);
+        $.accessManager.grantAccess(address(qusd), address(liquidityHub), qUSD.mint.selector);
+        $.accessManager.grantAccess(address(qusd), address(liquidityHub), qUSD.burn.selector);
     }
 
     function test_issue() external {
-        (address treasury, uint256 mintFeeBps, , ) = gateway.getFees();
+        (address treasury, uint256 mintFeeBps, , ) = liquidityHub.getFees();
         uint256 usdcAmount = 100 * 1e6;
         uint256 treasuryFee = (usdcAmount * mintFeeBps) / 1e4;
         uint256 qusdAmount = ((usdcAmount - treasuryFee) * 1e18) / 1e6;
 
         deal(address(usdc), address(this), usdcAmount);
-        usdc.approve(address(gateway), usdcAmount);
+        usdc.approve(address(liquidityHub), usdcAmount);
 
-        uint256 gatewayBalanceBefore = usdc.balanceOf(address(gateway));
+        uint256 liquidityHubBalanceBefore = usdc.balanceOf(address(liquidityHub));
         uint256 treasuryBalanceBefore = usdc.balanceOf(address(treasury));
         uint256 userBalanceBefore = qusd.balanceOf(user);
-        gateway.issue(user, usdcAmount);
+        liquidityHub.issue(user, usdcAmount);
 
         assertEq(
-            usdc.balanceOf(address(gateway)) - gatewayBalanceBefore,
+            usdc.balanceOf(address(liquidityHub)) - liquidityHubBalanceBefore,
             usdcAmount - treasuryFee,
-            "gateway should take USDC (-fee)"
+            "LiquidityHub should take USDC (-fee)"
         );
-        assertEq(usdc.balanceOf(treasury) - treasuryBalanceBefore, treasuryFee, "gateway should take fee in USDC");
-        assertEq(qusd.balanceOf(user) - userBalanceBefore, qusdAmount, "gateway should give qUSD");
+        assertEq(usdc.balanceOf(treasury) - treasuryBalanceBefore, treasuryFee, "LiquidityHub should take fee in USDC");
+        assertEq(qusd.balanceOf(user) - userBalanceBefore, qusdAmount, "LiquidityHub should give qUSD");
     }
 
     function test_redeemInstant() external {
         // mint fee disabled to simplify testing
-        $.accessManager.grantAccess(address(gateway), address(this), Gateway.setMintFee.selector);
-        gateway.setMintFee(0);
+        $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.setMintFee.selector);
+        liquidityHub.setMintFee(0);
 
-        (address treasury, , uint256 instantRedeemFeeBps, ) = gateway.getFees();
+        (address treasury, , uint256 instantRedeemFeeBps, ) = liquidityHub.getFees();
         uint256 usdcAmount = 100 * 1e6;
         uint256 treasuryFee = (usdcAmount * instantRedeemFeeBps) / 1e4;
 
         deal(address(usdc), address(this), usdcAmount);
-        usdc.approve(address(gateway), usdcAmount);
-        gateway.issue(address(this), usdcAmount);
+        usdc.approve(address(liquidityHub), usdcAmount);
+        liquidityHub.issue(address(this), usdcAmount);
 
-        uint256 gatewayBalanceBefore = usdc.balanceOf(address(gateway));
+        uint256 LiquidityHubBalanceBefore = usdc.balanceOf(address(liquidityHub));
         uint256 userBalanceBefore = usdc.balanceOf(user);
         uint256 treasuryBalanceBefore = usdc.balanceOf(treasury);
-        gateway.redeemInstant(user, qusd.balanceOf(address(this)));
+        liquidityHub.redeemInstant(user, qusd.balanceOf(address(this)));
 
-        assertEq(qusd.balanceOf(address(this)), 0, "gateway should burn qUSD");
+        assertEq(qusd.balanceOf(address(this)), 0, "LiquidityHub should burn qUSD");
         assertEq(
-            gatewayBalanceBefore - usdc.balanceOf(address(gateway)),
+            LiquidityHubBalanceBefore - usdc.balanceOf(address(liquidityHub)),
             usdcAmount,
-            "gateway should withdraw redeemAmount of USDC"
+            "LiquidityHub should withdraw redeemAmount of USDC"
         );
         assertEq(
             usdc.balanceOf(user) - userBalanceBefore,

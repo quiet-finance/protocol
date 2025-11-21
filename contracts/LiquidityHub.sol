@@ -9,13 +9,13 @@ import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 
 import {BpsMath} from "./libraries/BpsMath.sol";
 import {IMintableERC20} from "./interfaces/IMintableERC20.sol";
-import {IGateway} from "./interfaces/IGateway.sol";
+import {ILiquidityHub} from "./interfaces/ILiquidityHub.sol";
 
 using BpsMath for uint256;
 using SafeERC20 for IERC20;
 
-contract Gateway is AccessManagedUpgradeable, IGateway {
-    /// @custom:storage-location erc7201:quiet-finance.storage.Gateway;
+contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
+    /// @custom:storage-location erc7201:quiet-finance.storage.LiquidityHub;
     struct Storage {
         address treasury;
         uint256 nav;
@@ -27,8 +27,8 @@ contract Gateway is AccessManagedUpgradeable, IGateway {
         mapping(uint256 => RedeemRequestData) redeemRequests;
     }
 
-    /// @dev keccak256(abi.encode(uint256(keccak256("quiet-finance.storage.Gateway")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant STORAGE_LOCATION = 0x6c7c638069ba33d959e62c9f88f4b296b9b20152cbd15f932bd72f3052915f00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("quiet-finance.storage.LiquidityHub")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant STORAGE_LOCATION = 0xe8b4e6acc11b7ea32c9576c2f633d68d5883bbaf6e0350cabf1975ea66cfba00;
 
     IERC20 public immutable asset;
     IMintableERC20 public immutable qUSD;

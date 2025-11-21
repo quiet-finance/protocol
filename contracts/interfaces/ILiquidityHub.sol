@@ -6,7 +6,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {IMintableERC20} from "./IMintableERC20.sol";
 
-interface IGateway {
+interface ILiquidityHub {
     struct RedeemRequestData {
         address requester;
         address recipient;

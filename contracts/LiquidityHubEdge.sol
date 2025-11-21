@@ -5,17 +5,17 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {LiquidityEdge} from "./base/liquidity-edge/LiquidityEdge.sol";
-import {IGateway} from "./interfaces/IGateway.sol";
+import {ILiquidityHub} from "./interfaces/ILiquidityHub.sol";
 import {IUnderlyingToken} from "./interfaces/IUnderlyingToken.sol";
 
 using SafeERC20 for IERC20;
 
-contract GatewayEdge is LiquidityEdge {
-    IGateway immutable gateway;
+contract LiquidityHubEdge is LiquidityEdge {
+    ILiquidityHub immutable liquidityHub;
     IUnderlyingToken immutable node;
 
-    constructor(IGateway gateway_, IUnderlyingToken node_) {
-        gateway = gateway_;
+    constructor(ILiquidityHub liquidityHub_, IUnderlyingToken node_) {
+        liquidityHub = liquidityHub_;
         node = node_;
     }
 
@@ -23,10 +23,10 @@ contract GatewayEdge is LiquidityEdge {
         int256 assetsDelta = abi.decode(data, (int256));
         if (assetsDelta < 0) {
             require(amountIn == uint256(-assetsDelta));
-            node.token().safeTransfer(address(gateway), amountIn);
+            node.token().safeTransfer(address(liquidityHub), amountIn);
         }
 
-        gateway.startRebalance(assetsDelta);
+        liquidityHub.startRebalance(assetsDelta);
 
         if (assetsDelta > 0) {
             require(amountIn == 0);

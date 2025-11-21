@@ -4,14 +4,15 @@ pragma solidity ^0.8.27;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
 import {BpsMath} from "./libraries/BpsMath.sol";
+import {Scale} from "./libraries/Scale.sol";
 import {IMintableERC20} from "./interfaces/IMintableERC20.sol";
 import {ILiquidityHub} from "./interfaces/ILiquidityHub.sol";
 
 using BpsMath for uint256;
+using Scale for uint256;
 using SafeERC20 for IERC20;
 
 contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
@@ -42,11 +43,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         asset = asset_;
         qUSD = qUSD_;
         sqUSD = sqUSD_;
-
-        uint8 inDecimals = IERC20Metadata(address(asset_)).decimals();
-        uint8 outDecimals = IERC20Metadata(address(qUSD_)).decimals();
-        require(outDecimals >= inDecimals);
-        _scale = 10 ** (outDecimals - inDecimals);
+        _scale = Scale.calculate({asset: address(asset_), qUSD: address(qUSD_)});
     }
 
     function initialize(
@@ -80,7 +77,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         asset.safeTransferFrom(msg.sender, address(this), amountIn);
         asset.safeTransferFrom(msg.sender, _getStorage().treasury, fee);
 
-        issueAmount = amountIn * _scale;
+        issueAmount = amountIn.asQusdAmount(_scale);
         qUSD.mint(to, issueAmount);
         emit Issue(msg.sender, to, amount, issueAmount);
     }
@@ -88,7 +85,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
     function redeemInstant(address to, uint256 amount) external {
         qUSD.burn(msg.sender, amount);
 
-        uint256 amountOut = amount / _scale;
+        uint256 amountOut = amount.asAssetAmount(_scale);
         (uint256 fee, uint256 redeemAmount) = amountOut.takeBps(_getStorage().instantRedeemFeeBps);
         asset.safeTransfer(_getStorage().treasury, fee);
         asset.safeTransfer(to, redeemAmount);
@@ -98,12 +95,11 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
     function requestRedeem(address to, uint256 amount) external returns (uint256 requestId) {
         qUSD.burn(msg.sender, amount);
 
-        uint256 amountOut = amount / _scale;
         requestId = ++_getStorage().nextRedeemId;
         _getStorage().redeemRequests[requestId] = RedeemRequestData({
             requester: msg.sender,
             recipient: to,
-            amount: amountOut,
+            amount: amount.asAssetAmount(_scale),
             isProcessed: false
         });
 
@@ -123,7 +119,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
 
     function startRebalance(int256 assetsDelta) external restricted {
         if (assetsDelta > 0) {
-            asset.transfer(msg.sender, uint256(assetsDelta));
+            asset.transfer(msg.sender, uint256(assetsDelta).asAssetAmount(_scale));
         }
 
         uint256 oldNav = _getStorage().nav;
@@ -137,7 +133,9 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         uint256 navBeforeRebalance = _getStorage().nav;
         if (newNav > navBeforeRebalance) {
             (uint256 fee, uint256 yield) = (newNav - navBeforeRebalance).takeBps(_getStorage().performanceFeeBps);
-            asset.transfer(_getStorage().treasury, fee);
+            // Fee transfer could fail, if there is no such assets on Liquidity Hub.
+            // It's ok, rebalancer should maintain required amount for it.
+            asset.transfer(_getStorage().treasury, fee.asAssetAmount(_scale));
             qUSD.mint(address(sqUSD), yield);
         } else if (navBeforeRebalance > newNav) {
             qUSD.burn(address(sqUSD), navBeforeRebalance - newNav);
@@ -196,6 +194,10 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         mintFeeBps = _getStorage().mintFeeBps;
         instantRedeemFeeBps = _getStorage().instantRedeemFeeBps;
         performanceFeeBps = _getStorage().performanceFeeBps;
+    }
+
+    function getRedeemRequest(uint256 requestId) external view returns (RedeemRequestData memory) {
+        return _getStorage().redeemRequests[requestId];
     }
 
     function _getStorage() private pure returns (Storage storage $) {

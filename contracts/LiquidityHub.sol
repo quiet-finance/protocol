@@ -32,18 +32,18 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
     bytes32 private constant STORAGE_LOCATION = 0xe8b4e6acc11b7ea32c9576c2f633d68d5883bbaf6e0350cabf1975ea66cfba00;
 
     IERC20 public immutable asset;
-    IMintableERC20 public immutable qUSD;
-    IERC4626 public immutable sqUSD;
+    IMintableERC20 public immutable receipt;
+    IERC4626 public immutable share;
     uint256 immutable _scale;
 
-    constructor(IERC20 asset_, IMintableERC20 qUSD_, IERC4626 sqUSD_) {
+    constructor(IERC20 asset_, IMintableERC20 receipt_, IERC4626 share_) {
         _disableInitializers();
 
-        require(address(sqUSD_.asset()) == address(qUSD_));
+        require(address(share_.asset()) == address(receipt_));
         asset = asset_;
-        qUSD = qUSD_;
-        sqUSD = sqUSD_;
-        _scale = Scale.calculate({asset: address(asset_), qUSD: address(qUSD_)});
+        receipt = receipt_;
+        share = share_;
+        _scale = Scale.calculate({asset: address(asset_), receipt: address(receipt_)});
     }
 
     function initialize(
@@ -72,18 +72,18 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         emit TreasuryUpdated(address(0), treasury_);
     }
 
-    function issue(address to, uint256 amount) external returns (uint256 issueAmount) {
-        (uint256 fee, uint256 amountIn) = amount.takeBps(_getStorage().mintFeeBps);
-        asset.safeTransferFrom(msg.sender, address(this), amountIn);
+    function issue(address to, uint256 amount) external returns (uint256 receiptAmount) {
+        (uint256 fee, uint256 assetAmount) = amount.takeBps(_getStorage().mintFeeBps);
+        asset.safeTransferFrom(msg.sender, address(this), assetAmount);
         asset.safeTransferFrom(msg.sender, _getStorage().treasury, fee);
 
-        issueAmount = amountIn.asQusdAmount(_scale);
-        qUSD.mint(to, issueAmount);
-        emit Issue(msg.sender, to, amount, issueAmount);
+        receiptAmount = assetAmount.asReceiptAmount(_scale);
+        receipt.mint(to, receiptAmount);
+        emit Issue(msg.sender, to, amount, receiptAmount);
     }
 
     function redeemInstant(address to, uint256 amount) external {
-        qUSD.burn(msg.sender, amount);
+        receipt.burn(msg.sender, amount);
 
         uint256 amountOut = amount.asAssetAmount(_scale);
         (uint256 fee, uint256 redeemAmount) = amountOut.takeBps(_getStorage().instantRedeemFeeBps);
@@ -93,7 +93,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
     }
 
     function requestRedeem(address to, uint256 amount) external returns (uint256 requestId) {
-        qUSD.burn(msg.sender, amount);
+        receipt.burn(msg.sender, amount);
 
         requestId = ++_getStorage().nextRedeemId;
         _getStorage().redeemRequests[requestId] = RedeemRequestData({
@@ -136,9 +136,9 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
             // Fee transfer could fail, if there is no such assets on Liquidity Hub.
             // It's ok, rebalancer should maintain required amount for it.
             asset.transfer(_getStorage().treasury, fee.asAssetAmount(_scale));
-            qUSD.mint(address(sqUSD), yield);
+            receipt.mint(address(share), yield);
         } else if (navBeforeRebalance > newNav) {
-            qUSD.burn(address(sqUSD), navBeforeRebalance - newNav);
+            receipt.burn(address(share), navBeforeRebalance - newNav);
         }
         _getStorage().nav = newNav;
 

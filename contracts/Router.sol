@@ -13,8 +13,8 @@ using SafeERC20 for IERC20;
 contract Router {
     ILiquidityHub liquidityHub;
     IERC20 immutable asset;
-    IERC20 immutable qUSD;
-    IERC4626 immutable sqUSD;
+    IERC20 immutable receipt;
+    IERC4626 immutable share;
 
     struct PermitData {
         uint256 deadline;
@@ -27,11 +27,11 @@ contract Router {
         liquidityHub = liquidityHub_;
 
         asset = liquidityHub.asset();
-        qUSD = liquidityHub.qUSD();
-        sqUSD = liquidityHub.sqUSD();
+        receipt = liquidityHub.receipt();
+        share = liquidityHub.share();
 
         asset.forceApprove(address(liquidityHub), type(uint256).max);
-        qUSD.approve(address(sqUSD), type(uint256).max);
+        receipt.approve(address(share), type(uint256).max);
     }
 
     function deposit(uint256 amountIn, bool stake, PermitData calldata permit) public returns (uint256 amountOut) {
@@ -49,7 +49,7 @@ contract Router {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
 
         if (stake) {
-            amountOut = sqUSD.mint(liquidityHub.issue(address(this), amountIn), msg.sender);
+            amountOut = share.mint(liquidityHub.issue(address(this), amountIn), msg.sender);
         } else {
             amountOut = liquidityHub.issue(msg.sender, amountIn);
         }

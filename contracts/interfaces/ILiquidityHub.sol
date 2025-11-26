@@ -14,7 +14,7 @@ interface ILiquidityHub {
         bool isProcessed;
     }
 
-    event Issue(address indexed issuer, address indexed recipient, uint256 amount, uint256 issuedAmount);
+    event Issue(address indexed issuer, address indexed recipient, uint256 assetAmount, uint256 receiptAmount);
     event InstantRedeem(address indexed redeemer, address indexed recipient, uint256 amount, uint256 redeemedAmount);
     event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 amount);
     event Redeem(uint256 requestId, address indexed recipient, uint256 amount);
@@ -31,9 +31,9 @@ interface ILiquidityHub {
 
     function asset() external returns (IERC20);
 
-    function qUSD() external returns (IMintableERC20);
+    function receipt() external returns (IMintableERC20);
 
-    function sqUSD() external returns (IERC4626);
+    function share() external returns (IERC4626);
 
     function issue(address to, uint256 amount) external returns (uint256 issueAmount);
 

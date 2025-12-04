@@ -8,16 +8,20 @@ import {IMintableERC20} from "./IMintableERC20.sol";
 
 interface ILiquidityHub {
     struct RedeemRequestData {
-        address requester;
         address recipient;
-        uint256 amount;
+        uint256 receiptAmount;
         bool isProcessed;
     }
 
     event Issue(address indexed issuer, address indexed recipient, uint256 assetAmount, uint256 receiptAmount);
-    event InstantRedeem(address indexed redeemer, address indexed recipient, uint256 amount, uint256 redeemedAmount);
-    event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 amount);
-    event Redeem(uint256 requestId, address indexed recipient, uint256 amount);
+    event InstantRedeem(
+        address indexed redeemer,
+        address indexed recipient,
+        uint256 receiptAmount,
+        uint256 assetAmount
+    );
+    event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 receiptAmount);
+    event Redeem(uint256 requestId, address indexed recipient, uint256 assetAmount);
     event RebalanceStarted(uint256 oldNav, uint256 navBeforeRebalance);
     event RebalanceFinished(uint256 navBeforeRebalance, uint256 newNav);
     event TreasuryUpdated(address oldTreasury, address newTreasury);
@@ -35,7 +39,7 @@ interface ILiquidityHub {
 
     function share() external returns (IERC4626);
 
-    function issue(address to, uint256 amount) external returns (uint256 issueAmount);
+    function issue(address to, uint256 assetAmount) external returns (uint256 receiptAmount);
 
     function startRebalance(int256 assetsDelta) external;
 

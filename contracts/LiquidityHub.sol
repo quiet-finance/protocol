@@ -72,38 +72,37 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         emit TreasuryUpdated(address(0), treasury_);
     }
 
-    function issue(address to, uint256 amount) external returns (uint256 receiptAmount) {
-        (uint256 fee, uint256 assetAmount) = amount.takeBps(_getStorage().mintFeeBps);
-        asset.safeTransferFrom(msg.sender, address(this), assetAmount);
+    function issue(address to, uint256 assetAmount) external returns (uint256 receiptAmount) {
+        (uint256 fee, uint256 amount) = assetAmount.takeBps(_getStorage().mintFeeBps);
+        asset.safeTransferFrom(msg.sender, address(this), amount);
         asset.safeTransferFrom(msg.sender, _getStorage().treasury, fee);
 
-        receiptAmount = assetAmount.asReceiptAmount(_scale);
+        receiptAmount = amount.asReceiptAmount(_scale);
         receipt.mint(to, receiptAmount);
-        emit Issue(msg.sender, to, amount, receiptAmount);
+        emit Issue(msg.sender, to, assetAmount, receiptAmount);
     }
 
-    function redeemInstant(address to, uint256 amount) external {
-        receipt.burn(msg.sender, amount);
+    function redeemInstant(address to, uint256 receiptAmount) external {
+        receipt.burn(msg.sender, receiptAmount);
 
-        uint256 amountOut = amount.asAssetAmount(_scale);
-        (uint256 fee, uint256 redeemAmount) = amountOut.takeBps(_getStorage().instantRedeemFeeBps);
+        uint256 amount = receiptAmount.asAssetAmount(_scale);
+        (uint256 fee, uint256 assetAmount) = amount.takeBps(_getStorage().instantRedeemFeeBps);
         asset.safeTransfer(_getStorage().treasury, fee);
-        asset.safeTransfer(to, redeemAmount);
-        emit InstantRedeem(msg.sender, to, amount, redeemAmount);
+        asset.safeTransfer(to, assetAmount);
+        emit InstantRedeem(msg.sender, to, receiptAmount, assetAmount);
     }
 
-    function requestRedeem(address to, uint256 amount) external returns (uint256 requestId) {
-        receipt.burn(msg.sender, amount);
+    function requestRedeem(address to, uint256 receiptAmount) external returns (uint256 requestId) {
+        receipt.burn(msg.sender, receiptAmount);
 
         requestId = ++_getStorage().nextRedeemId;
         _getStorage().redeemRequests[requestId] = RedeemRequestData({
-            requester: msg.sender,
             recipient: to,
-            amount: amount.asAssetAmount(_scale),
+            receiptAmount: receiptAmount,
             isProcessed: false
         });
 
-        emit RedeemRequest(requestId, msg.sender, to, amount);
+        emit RedeemRequest(requestId, msg.sender, to, receiptAmount);
     }
 
     function finishRedeem(uint256 requestId) external {
@@ -111,10 +110,11 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         require(!redeemRequest.isProcessed, RedeemRequestAlreadyProcessed());
         require(requestId <= _getStorage().maxRedeemableId, RedeemRequestNotReady());
 
+        uint256 assetAmount = redeemRequest.receiptAmount.asAssetAmount(_scale);
         _getStorage().redeemRequests[requestId].isProcessed = true;
-        asset.transfer(redeemRequest.recipient, redeemRequest.amount);
+        asset.transfer(redeemRequest.recipient, assetAmount);
 
-        emit Redeem(requestId, redeemRequest.recipient, redeemRequest.amount);
+        emit Redeem(requestId, redeemRequest.recipient, assetAmount);
     }
 
     function startRebalance(int256 assetsDelta) external restricted {

@@ -109,15 +109,14 @@ contract LiquidityHubTest is Test {
         uint256 usdcAmount = 100 * 1e6;
         deal(address(usdc), address(this), usdcAmount);
         usdc.approve(address(liquidityHub), usdcAmount);
-        liquidityHub.issue(address(this), usdcAmount);
+        uint256 qusdAmount = liquidityHub.issue(address(this), usdcAmount);
 
         uint256 requestId = liquidityHub.requestRedeem(user, qusd.balanceOf(address(this)));
         LiquidityHub.RedeemRequestData memory request = liquidityHub.getRedeemRequest(requestId);
 
         assertEq(qusd.balanceOf(address(this)), 0, "LiquidityHub should burn qUSD");
-        assertEq(request.requester, address(this));
         assertEq(request.recipient, user);
-        assertEq(request.amount, usdcAmount);
+        assertEq(request.receiptAmount, qusdAmount);
         assertEq(request.isProcessed, false);
     }
 
@@ -141,7 +140,7 @@ contract LiquidityHubTest is Test {
         LiquidityHub.RedeemRequestData memory request = liquidityHub.getRedeemRequest(requestId);
 
         assertEq(request.isProcessed, true);
-        assertEq(usdc.balanceOf(user) - balanceBefore, request.amount);
+        assertEq(usdc.balanceOf(user) - balanceBefore, usdcAmount);
     }
 
     function test_startRebalance(int256 assetsDelta) external {

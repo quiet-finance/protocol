@@ -34,8 +34,8 @@ contract Router {
         receipt.approve(address(share), type(uint256).max);
     }
 
-    function deposit(uint256 amountIn, bool stake, PermitData calldata permit) public returns (uint256 amountOut) {
-        if (permit.deadline != 0) {
+    function deposit(uint256 amountIn, bool stake, PermitData calldata permit) external {
+        if (permit.deadline != 0)
             IERC20Permit(address(asset)).permit(
                 msg.sender,
                 address(this),
@@ -45,13 +45,31 @@ contract Router {
                 permit.r,
                 permit.s
             );
-        }
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
 
-        if (stake) {
-            amountOut = share.mint(liquidityHub.issue(address(this), amountIn), msg.sender);
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
+        uint256 amountOut = liquidityHub.issue(address(this), amountIn);
+        if (stake) share.deposit(amountOut, msg.sender);
+    }
+
+    function withdraw(uint256 amountIn, bool unstake, bool instant, PermitData calldata permit) external {
+        address tokenIn = address(unstake ? share : receipt);
+        if (permit.deadline != 0)
+            IERC20Permit(tokenIn).permit(
+                msg.sender,
+                address(this),
+                amountIn,
+                permit.deadline,
+                permit.v,
+                permit.r,
+                permit.s
+            );
+
+        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+        if (unstake) amountIn = share.redeem(amountIn, address(this), address(this));
+        if (instant) {
+            liquidityHub.redeemInstant(msg.sender, amountIn);
         } else {
-            amountOut = liquidityHub.issue(msg.sender, amountIn);
+            liquidityHub.requestRedeem(msg.sender, amountIn);
         }
     }
 }

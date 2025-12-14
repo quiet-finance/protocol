@@ -41,6 +41,10 @@ interface ILiquidityHub {
 
     function issue(address to, uint256 assetAmount) external returns (uint256 receiptAmount);
 
+    function redeemInstant(address to, uint256 receiptAmount) external returns (uint256 assetAmount);
+
+    function requestRedeem(address to, uint256 receiptAmount) external returns (uint256 requestId);
+
     function startRebalance(int256 assetsDelta) external;
 
     function finishRebalance(uint256 newNav) external;

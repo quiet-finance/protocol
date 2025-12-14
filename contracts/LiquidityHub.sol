@@ -82,11 +82,11 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         emit Issue(msg.sender, to, assetAmount, receiptAmount);
     }
 
-    function redeemInstant(address to, uint256 receiptAmount) external {
+    function redeemInstant(address to, uint256 receiptAmount) external returns (uint256 assetAmount) {
         receipt.burn(msg.sender, receiptAmount);
 
-        uint256 amount = receiptAmount.asAssetAmount(_scale);
-        (uint256 fee, uint256 assetAmount) = amount.takeBps(_getStorage().instantRedeemFeeBps);
+        uint256 fee;
+        (fee, assetAmount) = receiptAmount.asAssetAmount(_scale).takeBps(_getStorage().instantRedeemFeeBps);
         asset.safeTransfer(_getStorage().treasury, fee);
         asset.safeTransfer(to, assetAmount);
         emit InstantRedeem(msg.sender, to, receiptAmount, assetAmount);

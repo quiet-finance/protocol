@@ -47,8 +47,11 @@ contract Router {
             );
 
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
-        uint256 amountOut = liquidityHub.issue(address(this), amountIn);
-        if (stake) share.deposit(amountOut, msg.sender);
+        if (stake) {
+            share.deposit(liquidityHub.issue(address(this), amountIn), msg.sender);
+        } else {
+            liquidityHub.issue(msg.sender, amountIn);
+        }
     }
 
     function withdraw(uint256 amountIn, bool unstake, bool instant, PermitData calldata permit) external {

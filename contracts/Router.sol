@@ -12,9 +12,9 @@ using SafeERC20 for IERC20;
 
 contract Router {
     ILiquidityHub liquidityHub;
+    IERC20 immutable underlying;
     IERC20 immutable asset;
-    IERC20 immutable receipt;
-    IERC4626 immutable share;
+    IERC4626 immutable vault;
 
     struct PermitData {
         uint256 deadline;
@@ -23,15 +23,18 @@ contract Router {
         bytes32 s;
     }
 
+    event Deposit(address user, bool staked);
+    event Withdraw(address user, bool unstaked, bool instant);
+
     constructor(ILiquidityHub liquidityHub_) {
         liquidityHub = liquidityHub_;
 
+        underlying = liquidityHub.underlying();
         asset = liquidityHub.asset();
-        receipt = liquidityHub.receipt();
-        share = liquidityHub.share();
+        vault = liquidityHub.vault();
 
-        asset.forceApprove(address(liquidityHub), type(uint256).max);
-        receipt.approve(address(share), type(uint256).max);
+        underlying.forceApprove(address(liquidityHub), type(uint256).max);
+        asset.approve(address(vault), type(uint256).max);
     }
 
     function deposit(uint256 amountIn, bool stake, PermitData calldata permit) external {
@@ -48,14 +51,16 @@ contract Router {
 
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
         if (stake) {
-            share.deposit(liquidityHub.issue(address(this), amountIn), msg.sender);
+            vault.deposit(liquidityHub.issue(address(this), amountIn), msg.sender);
         } else {
             liquidityHub.issue(msg.sender, amountIn);
         }
+
+        emit Deposit(msg.sender, stake);
     }
 
     function withdraw(uint256 amountIn, bool unstake, bool instant, PermitData calldata permit) external {
-        address tokenIn = address(unstake ? share : receipt);
+        address tokenIn = address(unstake ? vault : asset);
         if (permit.deadline != 0)
             IERC20Permit(tokenIn).permit(
                 msg.sender,
@@ -68,11 +73,13 @@ contract Router {
             );
 
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-        if (unstake) amountIn = share.redeem(amountIn, address(this), address(this));
+        if (unstake) amountIn = vault.redeem(amountIn, address(this), address(this));
         if (instant) {
             liquidityHub.redeemInstant(msg.sender, amountIn);
         } else {
             liquidityHub.requestRedeem(msg.sender, amountIn);
         }
+
+        emit Withdraw(msg.sender, unstake, instant);
     }
 }

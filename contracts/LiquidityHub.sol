@@ -6,151 +6,166 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
-import {BpsMath} from "./libraries/BpsMath.sol";
+import {Bps} from "./libraries/BpsMath.sol";
 import {Scale} from "./libraries/Scale.sol";
 import {IMintableERC20} from "./interfaces/IMintableERC20.sol";
 import {ILiquidityHub} from "./interfaces/ILiquidityHub.sol";
 
-using BpsMath for uint256;
 using Scale for uint256;
+using Scale for int256;
 using SafeERC20 for IERC20;
 
 contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
     /// @custom:storage-location erc7201:quiet-finance.storage.LiquidityHub;
     struct Storage {
         address treasury;
-        uint256 nav;
-        uint256 mintFeeBps;
-        uint256 instantRedeemFeeBps;
-        uint256 performanceFeeBps;
-        uint256 nextRedeemId;
-        uint256 maxRedeemableId;
-        mapping(uint256 => RedeemRequestData) redeemRequests;
+        Bps mintFee;
+        Bps instantRedeemFee;
+        Bps performanceFee;
+        //
+
+        uint256 deployedAssets;
+        uint256 lastRedeemId;
+        uint256 lastProcessedRedeemId;
+        uint256 processedRedeems;
+        mapping(uint256 => RedeemData) redeems;
     }
 
     /// @dev keccak256(abi.encode(uint256(keccak256("quiet-finance.storage.LiquidityHub")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant STORAGE_LOCATION = 0xe8b4e6acc11b7ea32c9576c2f633d68d5883bbaf6e0350cabf1975ea66cfba00;
 
-    IERC20 public immutable asset;
-    IMintableERC20 public immutable receipt;
-    IERC4626 public immutable share;
+    IERC20 public immutable underlying;
+    IMintableERC20 public immutable asset;
+    IERC4626 public immutable vault;
     uint256 immutable _scale;
 
-    constructor(IERC20 asset_, IMintableERC20 receipt_, IERC4626 share_) {
+    constructor(IERC20 underlying_, IMintableERC20 asset_, IERC4626 vault_) {
         _disableInitializers();
 
-        require(address(share_.asset()) == address(receipt_));
+        require(address(vault_.asset()) == address(asset_));
+        underlying = underlying_;
         asset = asset_;
-        receipt = receipt_;
-        share = share_;
-        _scale = Scale.calculate({asset: address(asset_), receipt: address(receipt_)});
+        vault = vault_;
+        _scale = Scale.calculate({underlying: address(underlying_), asset: address(asset_)});
     }
 
     function initialize(
         address initialAuthority,
-        address treasury_,
-        uint256 mintFeeBps_,
-        uint256 instantRedeemFeeBps_,
-        uint256 performanceFeeBps_
+        address treasury,
+        Bps mintFee,
+        Bps instantRedeemFee,
+        Bps performanceFee
     ) public initializer {
         __AccessManaged_init(initialAuthority);
 
-        mintFeeBps_.validateBps();
-        _getStorage().mintFeeBps = mintFeeBps_;
-        emit MintFeeUpdated(0, instantRedeemFeeBps_);
+        Storage storage $ = _getStorage();
 
-        instantRedeemFeeBps_.validateBps();
-        _getStorage().instantRedeemFeeBps = instantRedeemFeeBps_;
-        emit InstantRedeemFeeUpdated(0, instantRedeemFeeBps_);
+        $.mintFee = mintFee.validate();
+        emit MintFeeUpdated(Bps.wrap(0), mintFee);
 
-        performanceFeeBps_.validateBps();
-        _getStorage().performanceFeeBps = performanceFeeBps_;
-        emit PerformanceFeeUpdated(0, performanceFeeBps_);
+        $.instantRedeemFee = instantRedeemFee.validate();
+        emit InstantRedeemFeeUpdated(Bps.wrap(0), instantRedeemFee);
 
-        require(treasury_ != address(0));
-        _getStorage().treasury = treasury_;
-        emit TreasuryUpdated(address(0), treasury_);
+        $.performanceFee = performanceFee.validate();
+        emit PerformanceFeeUpdated(Bps.wrap(0), performanceFee);
+
+        require(treasury != address(0));
+        $.treasury = treasury;
+        emit TreasuryUpdated(address(0), treasury);
     }
 
-    function issue(address to, uint256 assetAmount) external returns (uint256 receiptAmount) {
-        (uint256 fee, uint256 amount) = assetAmount.takeBps(_getStorage().mintFeeBps);
-        asset.safeTransferFrom(msg.sender, address(this), amount);
-        asset.safeTransferFrom(msg.sender, _getStorage().treasury, fee);
+    function issue(address to, uint256 underlyingAmount) external returns (uint256 assetAmount) {
+        Storage storage $ = _getStorage();
 
-        receiptAmount = amount.asReceiptAmount(_scale);
-        receipt.mint(to, receiptAmount);
-        emit Issue(msg.sender, to, assetAmount, receiptAmount);
+        (uint256 fee, uint256 amount) = $.mintFee.splitOf(underlyingAmount);
+        underlying.safeTransferFrom(msg.sender, address(this), amount);
+        underlying.safeTransferFrom(msg.sender, $.treasury, fee);
+
+        assetAmount = amount.asAssetAmount(_scale);
+        asset.mint(to, assetAmount);
+        emit Issue(msg.sender, to, underlyingAmount, assetAmount);
     }
 
-    function redeemInstant(address to, uint256 receiptAmount) external returns (uint256 assetAmount) {
-        receipt.burn(msg.sender, receiptAmount);
+    function redeemInstant(address to, uint256 assetAmount) external returns (uint256 underlyingAmount) {
+        Storage storage $ = _getStorage();
+
+        asset.burn(msg.sender, assetAmount);
 
         uint256 fee;
-        (fee, assetAmount) = receiptAmount.asAssetAmount(_scale).takeBps(_getStorage().instantRedeemFeeBps);
-        asset.safeTransfer(_getStorage().treasury, fee);
-        asset.safeTransfer(to, assetAmount);
-        emit InstantRedeem(msg.sender, to, receiptAmount, assetAmount);
+        (fee, underlyingAmount) = $.instantRedeemFee.splitOf(assetAmount.asUnderlyingAmount(_scale));
+        underlying.safeTransfer($.treasury, fee);
+        underlying.safeTransfer(to, underlyingAmount);
+        emit InstantRedeem(msg.sender, to, assetAmount, underlyingAmount);
     }
 
-    function requestRedeem(address to, uint256 receiptAmount) external returns (uint256 requestId) {
-        receipt.burn(msg.sender, receiptAmount);
+    function requestRedeem(address to, uint256 assetAmount) external returns (uint256 redeemId) {
+        Storage storage $ = _getStorage();
 
-        requestId = ++_getStorage().nextRedeemId;
-        _getStorage().redeemRequests[requestId] = RedeemRequestData({
+        asset.burn(msg.sender, assetAmount);
+
+        redeemId = ++$.lastRedeemId;
+        $.redeems[redeemId] = RedeemData({
             recipient: to,
-            receiptAmount: receiptAmount,
+            assetAmount: assetAmount,
+            cumAssetAmount: assetAmount + $.redeems[redeemId - 1].cumAssetAmount,
             isProcessed: false
         });
-
-        emit RedeemRequest(requestId, msg.sender, to, receiptAmount);
+        emit RedeemRequest(redeemId, msg.sender, to, assetAmount);
     }
 
-    function finishRedeem(uint256 requestId) external {
-        RedeemRequestData memory redeemRequest = _getStorage().redeemRequests[requestId];
-        require(!redeemRequest.isProcessed, RedeemRequestAlreadyProcessed());
-        require(requestId <= _getStorage().maxRedeemableId, RedeemRequestNotReady());
+    function finishRedeem(uint256 redeemId) external {
+        Storage storage $ = _getStorage();
+        RedeemData memory r = $.redeems[redeemId];
 
-        uint256 assetAmount = redeemRequest.receiptAmount.asAssetAmount(_scale);
-        _getStorage().redeemRequests[requestId].isProcessed = true;
-        asset.transfer(redeemRequest.recipient, assetAmount);
+        require(!r.isProcessed, RedeemRequestAlreadyProcessed());
+        require(redeemId <= $.lastRedeemId, RedeemRequestNotReady());
+        $.redeems[redeemId].isProcessed = true;
 
-        emit Redeem(requestId, redeemRequest.recipient, assetAmount);
+        uint256 underlyingAmount = r.assetAmount.asUnderlyingAmount(_scale);
+        underlying.transfer(r.recipient, underlyingAmount);
+        emit Redeem(redeemId, r.recipient, underlyingAmount);
     }
 
-    function startRebalance(int256 assetsDelta) external restricted {
-        if (assetsDelta > 0) {
-            asset.transfer(msg.sender, uint256(assetsDelta).asAssetAmount(_scale));
+    function startRebalance(int256 underlyingToDeploy) external restricted {
+        Storage storage $ = _getStorage();
+
+        if (underlyingToDeploy > 0) {
+            uint256 underlyingAmount = uint256(underlyingToDeploy);
+            require(underlyingAmount.asAssetAmount(_scale) >= _getAvaiableAssets());
+
+            underlying.transfer(msg.sender, underlyingAmount);
         }
 
-        uint256 oldNav = _getStorage().nav;
-        uint256 navBeforeRebalance = uint256(int256(oldNav) + assetsDelta);
-        _getStorage().nav = navBeforeRebalance;
-
-        emit RebalanceStarted(oldNav, navBeforeRebalance);
+        uint256 deployedAssets = uint256(int256($.deployedAssets) + underlyingToDeploy.asAssetAmount(_scale));
+        $.deployedAssets = deployedAssets;
+        emit RebalanceStarted(deployedAssets);
     }
 
-    function finishRebalance(uint256 newNav) external restricted {
-        uint256 navBeforeRebalance = _getStorage().nav;
-        if (newNav > navBeforeRebalance) {
-            (uint256 fee, uint256 yield) = (newNav - navBeforeRebalance).takeBps(_getStorage().performanceFeeBps);
-            // Fee transfer could fail, if there is no such assets on Liquidity Hub.
-            // It's ok, rebalancer should maintain required amount for it.
-            asset.transfer(_getStorage().treasury, fee.asAssetAmount(_scale));
-            receipt.mint(address(share), yield);
-        } else if (navBeforeRebalance > newNav) {
-            receipt.burn(address(share), navBeforeRebalance - newNav);
+    function finishRebalance(uint256 deployedAssets) external restricted {
+        Storage storage $ = _getStorage();
+
+        uint256 deployedAssetsBefore = $.deployedAssets;
+        if (deployedAssets > deployedAssetsBefore) {
+            (uint256 fee, uint256 yield) = $.performanceFee.splitOf(deployedAssets - deployedAssetsBefore);
+            // 1. Fee transfer could fail, if there is no such underlyings on Liquidity Hub,
+            // rebalancer should maintain required amount for it.
+            // 2. Maybe there is some dust, which didn't sends to treasury because of decimals conversions.
+            underlying.transfer($.treasury, fee.asUnderlyingAmount(_scale));
+            asset.mint(address(vault), yield);
+        } else if (deployedAssetsBefore > deployedAssets) {
+            asset.burn(address(vault), deployedAssetsBefore - deployedAssets);
         }
-        _getStorage().nav = newNav;
+        $.deployedAssets = deployedAssets;
 
-        emit RebalanceFinished(navBeforeRebalance, newNav);
+        emit RebalanceFinished(deployedAssets);
     }
 
-    function setMaxRedeemableId(uint256 id) external restricted {
-        require(id > _getStorage().maxRedeemableId);
+    function processRedeems(uint256 lastProcessedRedeemId) external restricted {
+        Storage storage $ = _getStorage();
 
-        uint256 oldMaxRedeemableId = _getStorage().maxRedeemableId;
-        _getStorage().maxRedeemableId = id;
-        emit MaxRedeemableIdUpdated(oldMaxRedeemableId, id);
+        require(lastProcessedRedeemId > $.lastProcessedRedeemId);
+        $.lastProcessedRedeemId = lastProcessedRedeemId;
+        emit RedeemsProcessed(lastProcessedRedeemId);
     }
 
     function setTreasury(address treasury_) external restricted {
@@ -161,43 +176,35 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         emit TreasuryUpdated(oldTreasury, treasury_);
     }
 
-    function setMintFee(uint256 feeBps) external restricted {
-        feeBps.validateBps();
-
-        uint256 oldFeeBps = _getStorage().mintFeeBps;
-        _getStorage().mintFeeBps = feeBps;
-        emit MintFeeUpdated(oldFeeBps, feeBps);
+    function setMintFee(Bps fee) external restricted {
+        Bps oldFee = _getStorage().mintFee;
+        _getStorage().mintFee = fee.validate();
+        emit MintFeeUpdated(oldFee, fee);
     }
 
-    function setInstantRedeemFee(uint256 feeBps) external restricted {
-        feeBps.validateBps();
-
-        uint256 oldFeeBps = _getStorage().instantRedeemFeeBps;
-        _getStorage().instantRedeemFeeBps = feeBps;
-        emit InstantRedeemFeeUpdated(oldFeeBps, feeBps);
+    function setInstantRedeemFee(Bps fee) external restricted {
+        Bps oldFee = _getStorage().instantRedeemFee;
+        _getStorage().instantRedeemFee = fee.validate();
+        emit InstantRedeemFeeUpdated(oldFee, fee);
     }
 
-    function setPerformanceFee(uint256 feeBps) external restricted {
-        feeBps.validateBps();
-
-        uint256 oldFeeBps = _getStorage().performanceFeeBps;
-        _getStorage().performanceFeeBps = feeBps;
-        emit PerformanceFeeUpdated(oldFeeBps, feeBps);
+    function setPerformanceFee(Bps fee) external restricted {
+        Bps oldFee = _getStorage().performanceFee;
+        _getStorage().performanceFee = fee.validate();
+        emit PerformanceFeeUpdated(oldFee, fee);
     }
 
-    function getFees()
-        external
-        view
-        returns (address treasury, uint256 mintFeeBps, uint256 instantRedeemFeeBps, uint256 performanceFeeBps)
-    {
-        treasury = _getStorage().treasury;
-        mintFeeBps = _getStorage().mintFeeBps;
-        instantRedeemFeeBps = _getStorage().instantRedeemFeeBps;
-        performanceFeeBps = _getStorage().performanceFeeBps;
+    function getFees() external view returns (address treasury, Bps mintFee, Bps instantRedeemFee, Bps performanceFee) {
+        Storage storage $ = _getStorage();
+        return ($.treasury, $.mintFee, $.instantRedeemFee, $.performanceFee);
     }
 
-    function getRedeemRequest(uint256 requestId) external view returns (RedeemRequestData memory) {
-        return _getStorage().redeemRequests[requestId];
+    function getRedeem(uint256 redeemId) external view returns (RedeemData memory) {
+        return _getStorage().redeems[redeemId];
+    }
+
+    function _getAvaiableAssets() internal view returns (uint256) {
+        return 0;
     }
 
     function _getStorage() private pure returns (Storage storage $) {

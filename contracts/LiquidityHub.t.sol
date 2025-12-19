@@ -9,6 +9,7 @@ import "./test/utils.sol" as $;
 import {qUSD} from "./tokens/qUSD.sol";
 import {sqUSD} from "./tokens/sqUSD.sol";
 import {LiquidityHub, ILiquidityHub} from "./LiquidityHub.sol";
+import {Bps} from "./libraries/BpsMath.sol";
 
 import "hardhat/console.sol";
 
@@ -39,9 +40,9 @@ contract LiquidityHubTest is Test {
                     (
                         $.accessManager.addr(),
                         address(777),
-                        10, // 0.1%
-                        50, // 0.5%
-                        1000 // 10%
+                        Bps.wrap(10), // 0.1%
+                        Bps.wrap(50), // 0.5%
+                        Bps.wrap(1000) // 10%
                     )
                 )
             )
@@ -52,9 +53,9 @@ contract LiquidityHubTest is Test {
     }
 
     function test_issue() external {
-        (address treasury, uint256 mintFeeBps, , ) = liquidityHub.getFees();
+        (address treasury, Bps mintFeeBps, , ) = liquidityHub.getFees();
         uint256 usdcAmount = 100 * 1e6;
-        uint256 treasuryFee = (usdcAmount * mintFeeBps) / 1e4;
+        uint256 treasuryFee = (usdcAmount * Bps.unwrap(mintFeeBps)) / 1e4;
         uint256 qusdAmount = ((usdcAmount - treasuryFee) * 1e18) / 1e6;
 
         deal(address(usdc), address(this), usdcAmount);
@@ -77,9 +78,9 @@ contract LiquidityHubTest is Test {
     function test_redeemInstant() external {
         _disableMintFee();
 
-        (address treasury, , uint256 instantRedeemFeeBps, ) = liquidityHub.getFees();
+        (address treasury, , Bps instantRedeemFeeBps, ) = liquidityHub.getFees();
         uint256 usdcAmount = 100 * 1e6;
-        uint256 treasuryFee = (usdcAmount * instantRedeemFeeBps) / 1e4;
+        uint256 treasuryFee = (usdcAmount * Bps.unwrap(instantRedeemFeeBps)) / 1e4;
         deal(address(usdc), address(this), usdcAmount);
         usdc.approve(address(liquidityHub), usdcAmount);
         liquidityHub.issue(address(this), usdcAmount);
@@ -109,15 +110,24 @@ contract LiquidityHubTest is Test {
         uint256 usdcAmount = 100 * 1e6;
         deal(address(usdc), address(this), usdcAmount);
         usdc.approve(address(liquidityHub), usdcAmount);
-        uint256 qusdAmount = liquidityHub.issue(address(this), usdcAmount);
 
-        uint256 requestId = liquidityHub.requestRedeem(user, qusd.balanceOf(address(this)));
-        LiquidityHub.RedeemRequestData memory request = liquidityHub.getRedeemRequest(requestId);
+        uint256 requestAmount = qusd.balanceOf(address(this)) / 2;
+        uint256 requestId = liquidityHub.requestRedeem(user, requestAmount);
+        LiquidityHub.RedeemData memory redeem = liquidityHub.getRedeem(requestId);
+
+        assertEq(redeem.recipient, user);
+        assertEq(redeem.assetAmount, requestAmount);
+        assertEq(redeem.isProcessed, false);
+        assertEq(redeem.cumAssetAmount, requestAmount);
+
+        uint256 redeem2Amount = qusd.balanceOf(address(this));
+        LiquidityHub.RedeemData memory redeem2 = liquidityHub.getRedeem(
+            liquidityHub.requestRedeem(user, redeem2Amount)
+        );
+        assertEq(redeem2.assetAmount, redeem2Amount);
+        assertEq(redeem2.cumAssetAmount, requestAmount + redeem2Amount);
 
         assertEq(qusd.balanceOf(address(this)), 0, "LiquidityHub should burn qUSD");
-        assertEq(request.recipient, user);
-        assertEq(request.receiptAmount, qusdAmount);
-        assertEq(request.isProcessed, false);
     }
 
     function test_finishRedeem() external {
@@ -127,17 +137,17 @@ contract LiquidityHubTest is Test {
         deal(address(usdc), address(this), usdcAmount);
         usdc.approve(address(liquidityHub), usdcAmount);
         liquidityHub.issue(address(this), usdcAmount);
-        uint256 requestId = liquidityHub.requestRedeem(user, qusd.balanceOf(address(this)));
+        uint256 redeemId = liquidityHub.requestRedeem(user, qusd.balanceOf(address(this)));
 
         // Should revert before setMaxRedeemableId call
         vm.expectRevert(ILiquidityHub.RedeemRequestNotReady.selector);
-        liquidityHub.finishRedeem(requestId);
+        liquidityHub.finishRedeem(redeemId);
 
-        $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.setMaxRedeemableId.selector);
-        liquidityHub.setMaxRedeemableId(requestId);
+        $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.processRedeems.selector);
+        liquidityHub.processRedeems(redeemId);
         uint256 balanceBefore = usdc.balanceOf(user);
-        liquidityHub.finishRedeem(requestId);
-        LiquidityHub.RedeemRequestData memory request = liquidityHub.getRedeemRequest(requestId);
+        liquidityHub.finishRedeem(redeemId);
+        LiquidityHub.RedeemData memory request = liquidityHub.getRedeem(redeemId);
 
         assertEq(request.isProcessed, true);
         assertEq(usdc.balanceOf(user) - balanceBefore, usdcAmount);
@@ -154,13 +164,13 @@ contract LiquidityHubTest is Test {
 
         uint256 balanceBefore = usdc.balanceOf(address(this));
         vm.expectEmit(true, true, true, false);
-        emit ILiquidityHub.RebalanceStarted(0, 0);
+        emit ILiquidityHub.RebalanceStarted(0);
         liquidityHub.startRebalance(assetsDelta);
         assertEq(usdc.balanceOf(address(this)) - balanceBefore, usdcAmount);
     }
 
     function test_finshRebalance(uint256 newNav) external {
-        (address treasury, , , uint256 performanceFeeBps) = liquidityHub.getFees();
+        (address treasury, , , Bps performanceFeeBps) = liquidityHub.getFees();
 
         uint256 nav = 1000 * 1e18;
         vm.assume(newNav < 2 * nav);
@@ -178,15 +188,18 @@ contract LiquidityHubTest is Test {
         $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.finishRebalance.selector);
 
         vm.expectEmit();
-        emit ILiquidityHub.RebalanceFinished(nav, newNav);
+        emit ILiquidityHub.RebalanceFinished(newNav);
         liquidityHub.finishRebalance(newNav);
 
         if (newNav > nav) {
             uint256 navDelta = newNav - nav;
-            assertEq(qusd.balanceOf(address(squsd)) - assetsBefore, navDelta - (navDelta * performanceFeeBps) / 10_000);
+            assertEq(
+                qusd.balanceOf(address(squsd)) - assetsBefore,
+                navDelta - (navDelta * Bps.unwrap(performanceFeeBps)) / 10_000
+            );
             assertEq(
                 usdc.balanceOf(address(treasury)) - treasuryBalanceBefore,
-                ((navDelta / 1e12) * performanceFeeBps) / 10_000
+                ((navDelta / 1e12) * Bps.unwrap(performanceFeeBps)) / 10_000
             );
         } else {
             assertEq(assetsBefore - qusd.balanceOf(address(squsd)), nav - newNav);
@@ -195,6 +208,6 @@ contract LiquidityHubTest is Test {
 
     function _disableMintFee() internal {
         $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.setMintFee.selector);
-        liquidityHub.setMintFee(0);
+        liquidityHub.setMintFee(Bps.wrap(0));
     }
 }

@@ -3,9 +3,9 @@
 ## Tokens
 |Token|Price|Type|Name in contract|
 |-|-|-|-|
-|USDC|||asset|
-|qUSD|1 USDC|erc20 stablecoin|receipt|
-|sqUSD|constantly goes up, reflects yield|erc4626 vault|share|
+|USDC|||underlying|
+|qUSD|1 USDC|erc20 stablecoin|asset|
+|sqUSD|constantly goes up, reflects yield|erc4626 vault|vault|
 
 ## Contracts
 - `Strategy` - Contract, which represents one atomic yield source (example: we deposit USDC to Aave Ethereum and get lending yield - it's strategy, USDT Ethereum deposit or USDC Base deposit it's another strategies).

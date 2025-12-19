@@ -39,6 +39,7 @@ interface ILiquidityHub {
 
     error RedeemRequestAlreadyProcessed();
     error RedeemRequestNotReady();
+    error NoAvailableUnderlyingAmount();
 
     // user actions
     function issue(address to, uint256 assetAmount) external returns (uint256 receiptAmount);

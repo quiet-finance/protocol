@@ -153,34 +153,30 @@ contract LiquidityHubTest is Test {
         assertEq(usdc.balanceOf(user) - balanceBefore, usdcAmount);
     }
 
-    function test_startRebalance(int256 assetsDelta) external {
+    function test_startRebalance(uint256 underlyingToDeploy) external {
+        vm.assume(underlyingToDeploy <= uint256(type(int256).max / 1e12));
         $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.startRebalance.selector);
+        $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.finishRebalance.selector);
 
-        uint256 usdcAmount = 0;
-        if (assetsDelta > 0) {
-            usdcAmount = uint256(assetsDelta) / 1e12;
-            deal(address(usdc), address(liquidityHub), usdcAmount);
-        }
-
+        deal(address(usdc), address(liquidityHub), uint256(underlyingToDeploy));
         uint256 balanceBefore = usdc.balanceOf(address(this));
-        vm.expectEmit(true, true, true, false);
-        emit ILiquidityHub.RebalanceStarted(0);
-        liquidityHub.startRebalance(assetsDelta);
-        assertEq(usdc.balanceOf(address(this)) - balanceBefore, usdcAmount);
+        liquidityHub.startRebalance(int256(underlyingToDeploy));
+        assertEq(usdc.balanceOf(address(this)) - balanceBefore, underlyingToDeploy);
     }
 
-    function test_finshRebalance(uint256 newNav) external {
+    function test_finshRebalance(uint256 deployedAssets) external {
         (address treasury, , , Bps performanceFeeBps) = liquidityHub.getFees();
 
-        uint256 nav = 1000 * 1e18;
-        vm.assume(newNav < 2 * nav);
-        vm.assume(newNav > nav / 2);
+        uint256 deployedUnderlyingBefore = 1000 * 1e6;
+        uint256 deployedAssetsBefore = 1000 * 1e18;
+        vm.assume(deployedAssets < 2 * deployedAssetsBefore);
+        vm.assume(deployedAssets > deployedAssetsBefore / 2);
 
-        deal(address(usdc), address(liquidityHub), (2 * nav) / 1e12);
-        deal(address(qusd), address(squsd), nav);
+        deal(address(usdc), address(liquidityHub), 2 * deployedUnderlyingBefore);
+        deal(address(qusd), address(squsd), 2 * deployedAssetsBefore);
 
         $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.startRebalance.selector);
-        liquidityHub.startRebalance(int256(nav));
+        liquidityHub.startRebalance(int256(deployedUnderlyingBefore));
 
         uint256 assetsBefore = qusd.balanceOf(address(squsd));
         uint256 treasuryBalanceBefore = usdc.balanceOf(address(treasury));
@@ -188,21 +184,21 @@ contract LiquidityHubTest is Test {
         $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.finishRebalance.selector);
 
         vm.expectEmit();
-        emit ILiquidityHub.RebalanceFinished(newNav);
-        liquidityHub.finishRebalance(newNav);
+        emit ILiquidityHub.RebalanceFinished(deployedAssets);
+        liquidityHub.finishRebalance(deployedAssets);
 
-        if (newNav > nav) {
-            uint256 navDelta = newNav - nav;
+        if (deployedAssets > deployedAssetsBefore) {
+            uint256 assetsDelta = deployedAssets - deployedAssetsBefore;
             assertEq(
                 qusd.balanceOf(address(squsd)) - assetsBefore,
-                navDelta - (navDelta * Bps.unwrap(performanceFeeBps)) / 10_000
+                assetsDelta - (assetsDelta * Bps.unwrap(performanceFeeBps)) / 10_000
             );
             assertEq(
                 usdc.balanceOf(address(treasury)) - treasuryBalanceBefore,
-                ((navDelta / 1e12) * Bps.unwrap(performanceFeeBps)) / 10_000
+                ((assetsDelta / 1e12) * Bps.unwrap(performanceFeeBps)) / 10_000
             );
         } else {
-            assertEq(assetsBefore - qusd.balanceOf(address(squsd)), nav - newNav);
+            assertEq(assetsBefore - qusd.balanceOf(address(squsd)), deployedAssetsBefore - deployedAssets);
         }
     }
 

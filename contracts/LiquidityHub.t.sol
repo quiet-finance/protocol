@@ -104,6 +104,14 @@ contract LiquidityHubTest is Test {
         assertEq(usdc.balanceOf(treasury) - treasuryBalanceBefore, treasuryFee, "treasury should take fee from redeem");
     }
 
+    function test_redeemInstant_limitedUnerlying() external {
+        deal(address(qusd), address(this), 2e18);
+        deal(address(usdc), address(this), 1e6);
+
+        vm.expectRevert(ILiquidityHub.NoAvailableUnderlyingAmount.selector);
+        liquidityHub.redeemInstant(address(this), 2e18);
+    }
+
     function test_requestRedeem() external {
         _disableMintFee();
 

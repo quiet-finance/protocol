@@ -42,16 +42,16 @@ interface ILiquidityHub {
     error NoAvailableUnderlyingAmount();
 
     // user actions
-    function issue(address to, uint256 assetAmount) external returns (uint256 receiptAmount);
+    function issue(address recipient, uint256 underlyingAmount) external returns (uint256 assetAmount);
 
-    function redeemInstant(address to, uint256 receiptAmount) external returns (uint256 assetAmount);
+    function redeemInstant(address recipient, uint256 assetAmount) external returns (uint256 underlyingAmount);
 
-    function requestRedeem(address to, uint256 receiptAmount) external returns (uint256 requestId);
+    function requestRedeem(address recipient, uint256 assetAmount) external returns (uint256 redeemId);
 
     // system actions
-    function startRebalance(int256 assetsDelta) external;
+    function startRebalance(int256 underlyingToDeploy) external;
 
-    function finishRebalance(uint256 newNav) external;
+    function finishRebalance(uint256 deployedAssets) external;
 
     // getters
     function underlying() external returns (IERC20);

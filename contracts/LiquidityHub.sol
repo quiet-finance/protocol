@@ -27,7 +27,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         uint256 deployedAssets;
         uint256 lastRedeemId;
         uint256 lastProcessedRedeemId;
-        uint256 processedRedeems;
+        uint256 processedRedeemAssets;
         mapping(uint256 => RedeemData) redeems;
     }
 
@@ -74,7 +74,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         emit TreasuryUpdated(address(0), treasury);
     }
 
-    function issue(address to, uint256 underlyingAmount) external returns (uint256 assetAmount) {
+    function issue(address recipient, uint256 underlyingAmount) external returns (uint256 assetAmount) {
         Storage storage $ = _getStorage();
 
         (uint256 fee, uint256 underlyingAmountWithoutFee) = $.mintFee.splitOf(underlyingAmount);
@@ -82,11 +82,11 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         underlying.safeTransferFrom(msg.sender, $.treasury, fee);
 
         assetAmount = underlyingAmountWithoutFee.asAssetAmount(_scale);
-        asset.mint(to, assetAmount);
-        emit Issue(msg.sender, to, underlyingAmount, assetAmount);
+        asset.mint(recipient, assetAmount);
+        emit Issue(msg.sender, recipient, underlyingAmount, assetAmount);
     }
 
-    function redeemInstant(address to, uint256 assetAmount) external returns (uint256 underlyingAmount) {
+    function redeemInstant(address recipient, uint256 assetAmount) external returns (uint256 underlyingAmount) {
         Storage storage $ = _getStorage();
 
         asset.burn(msg.sender, assetAmount);
@@ -95,36 +95,37 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         _checkIfUnderlyingAvailable(underlyingAmount + fee);
 
         underlying.safeTransfer($.treasury, fee);
-        underlying.safeTransfer(to, underlyingAmount);
-        emit InstantRedeem(msg.sender, to, assetAmount, underlyingAmount);
+        underlying.safeTransfer(recipient, underlyingAmount);
+        emit InstantRedeem(msg.sender, recipient, assetAmount, underlyingAmount);
     }
 
-    function requestRedeem(address to, uint256 assetAmount) external returns (uint256 redeemId) {
+    function requestRedeem(address recipient, uint256 assetAmount) external returns (uint256 redeemId) {
         Storage storage $ = _getStorage();
 
         asset.burn(msg.sender, assetAmount);
 
         redeemId = ++$.lastRedeemId;
         $.redeems[redeemId] = RedeemData({
-            recipient: to,
+            recipient: recipient,
             assetAmount: assetAmount,
             cumAssetAmount: assetAmount + $.redeems[redeemId - 1].cumAssetAmount,
             isProcessed: false
         });
-        emit RedeemRequest(redeemId, msg.sender, to, assetAmount);
+        emit RedeemRequest(redeemId, msg.sender, recipient, assetAmount);
     }
 
     function finishRedeem(uint256 redeemId) external {
         Storage storage $ = _getStorage();
-        RedeemData memory r = $.redeems[redeemId];
+        RedeemData memory redeem = $.redeems[redeemId];
 
-        require(!r.isProcessed, RedeemRequestAlreadyProcessed());
+        require(!redeem.isProcessed, RedeemRequestAlreadyProcessed());
         require(redeemId <= $.lastProcessedRedeemId, RedeemRequestNotReady());
         $.redeems[redeemId].isProcessed = true;
+        $.processedRedeemAssets += redeem.assetAmount;
 
-        uint256 underlyingAmount = r.assetAmount.asUnderlyingAmount(_scale);
-        underlying.transfer(r.recipient, underlyingAmount);
-        emit Redeem(redeemId, r.recipient, underlyingAmount);
+        uint256 underlyingAmount = redeem.assetAmount.asUnderlyingAmount(_scale);
+        underlying.transfer(redeem.recipient, underlyingAmount);
+        emit Redeem(redeemId, redeem.recipient, underlyingAmount);
     }
 
     function startRebalance(int256 underlyingToDeploy) external restricted {
@@ -147,12 +148,12 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
 
         uint256 deployedAssetsBefore = $.deployedAssets;
         if (deployedAssets > deployedAssetsBefore) {
-            (uint256 fee, uint256 yield) = $.performanceFee.splitOf(deployedAssets - deployedAssetsBefore);
+            (uint256 feeAssets, uint256 yieldAssets) = $.performanceFee.splitOf(deployedAssets - deployedAssetsBefore);
             // 1. Fee transfer could fail, if there is no such underlyings on Liquidity Hub,
             // rebalancer should maintain required amount for it.
             // 2. Maybe there is some dust, which didn't sends to treasury because of decimals conversions.
-            underlying.transfer($.treasury, fee.asUnderlyingAmount(_scale));
-            asset.mint(address(vault), yield);
+            underlying.transfer($.treasury, feeAssets.asUnderlyingAmount(_scale));
+            asset.mint(address(vault), yieldAssets);
         } else if (deployedAssetsBefore > deployedAssets) {
             asset.burn(address(vault), deployedAssetsBefore - deployedAssets);
         }
@@ -204,11 +205,11 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         return _getStorage().redeems[redeemId];
     }
 
-    function _checkIfUnderlyingAvailable(uint256 underlyingAmount) internal view returns (uint256) {
+    function _checkIfUnderlyingAvailable(uint256 underlyingAmount) internal view {
         Storage storage $ = _getStorage();
 
         uint256 underlyingBalance = underlying.balanceOf(address(this));
-        uint256 lockedAssets = $.redeems[$.lastRedeemId].cumAssetAmount - $.processedRedeems;
+        uint256 lockedAssets = $.redeems[$.lastRedeemId].cumAssetAmount - $.processedRedeemAssets;
         require(
             underlyingBalance.asAssetAmount(_scale) - lockedAssets >= underlyingAmount.asAssetAmount(_scale),
             NoAvailableUnderlyingAmount()

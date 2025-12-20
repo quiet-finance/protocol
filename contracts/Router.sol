@@ -49,7 +49,7 @@ contract Router {
                 permit.s
             );
 
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amountIn);
+        IERC20(underlying).safeTransferFrom(msg.sender, address(this), amountIn);
         if (stake) {
             vault.deposit(liquidityHub.issue(address(this), amountIn), msg.sender);
         } else {

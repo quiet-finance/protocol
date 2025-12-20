@@ -16,19 +16,19 @@ interface ILiquidityHub {
     }
 
     // user actions
-    event Issue(address indexed issuer, address indexed recipient, uint256 assetAmount, uint256 receiptAmount);
+    event Issue(address indexed issuer, address indexed recipient, uint256 underlyingAmount, uint256 assetAmount);
     event InstantRedeem(
         address indexed redeemer,
         address indexed recipient,
-        uint256 receiptAmount,
-        uint256 assetAmount
+        uint256 assetAmount,
+        uint256 underlyingAmount
     );
-    event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 receiptAmount);
-    event Redeem(uint256 requestId, address indexed recipient, uint256 assetAmount);
+    event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 assetAmount);
+    event Redeem(uint256 requestId, address indexed recipient, uint256 underlyingAmount);
 
     // system actions
-    event RebalanceStarted(uint256 deployedAssets);
-    event RebalanceFinished(uint256 deployedAssets);
+    event RebalanceStarted(uint256 deployedUnderlying);
+    event RebalanceFinished(uint256 deployedUnderlying);
     event RedeemsProcessed(uint256 lastProcessedRedeemId);
 
     // config updates

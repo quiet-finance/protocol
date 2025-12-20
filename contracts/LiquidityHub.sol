@@ -24,7 +24,9 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         Bps performanceFee;
         //
 
-        uint256 deployedAssets;
+        uint256 deployedUnderlying;
+        //
+
         uint256 lastRedeemId;
         uint256 lastProcessedRedeemId;
         uint256 processedRedeemAssets;
@@ -138,28 +140,28 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
             underlying.transfer(msg.sender, underlyingAmount);
         }
 
-        uint256 deployedAssets = uint256(int256($.deployedAssets) + underlyingToDeploy.asAssetAmount(_scale));
-        $.deployedAssets = deployedAssets;
-        emit RebalanceStarted(deployedAssets);
+        uint256 deployedUnderlying = uint256(int256($.deployedUnderlying) + underlyingToDeploy);
+        $.deployedUnderlying = deployedUnderlying;
+        emit RebalanceStarted(deployedUnderlying);
     }
 
-    function finishRebalance(uint256 deployedAssets) external restricted {
+    function finishRebalance(uint256 deployedUnderlying) external restricted {
         Storage storage $ = _getStorage();
 
-        uint256 deployedAssetsBefore = $.deployedAssets;
-        if (deployedAssets > deployedAssetsBefore) {
-            (uint256 feeAssets, uint256 yieldAssets) = $.performanceFee.splitOf(deployedAssets - deployedAssetsBefore);
-            // 1. Fee transfer could fail, if there is no such underlyings on Liquidity Hub,
+        uint256 deployedUnderlyingBefore = $.deployedUnderlying;
+        if (deployedUnderlying > deployedUnderlyingBefore) {
+            (uint256 fee, uint256 yield) = $.performanceFee.splitOf(deployedUnderlying - deployedUnderlyingBefore);
+            // Fee transfer could fail, if there is no such underlyings on Liquidity Hub,
             // rebalancer should maintain required amount for it.
-            // 2. Maybe there is some dust, which didn't sends to treasury because of decimals conversions.
-            underlying.transfer($.treasury, feeAssets.asUnderlyingAmount(_scale));
-            asset.mint(address(vault), yieldAssets);
-        } else if (deployedAssetsBefore > deployedAssets) {
-            asset.burn(address(vault), deployedAssetsBefore - deployedAssets);
+            underlying.transfer($.treasury, fee);
+            asset.mint(address(vault), yield.asAssetAmount(_scale));
+        } else if (deployedUnderlyingBefore > deployedUnderlying) {
+            uint256 loss = deployedUnderlyingBefore - deployedUnderlying;
+            asset.burn(address(vault), loss.asAssetAmount(_scale));
         }
-        $.deployedAssets = deployedAssets;
+        $.deployedUnderlying = deployedUnderlying;
 
-        emit RebalanceFinished(deployedAssets);
+        emit RebalanceFinished(deployedUnderlying);
     }
 
     function processRedeems(uint256 lastProcessedRedeemId) external restricted {

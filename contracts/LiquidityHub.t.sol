@@ -172,13 +172,16 @@ contract LiquidityHubTest is Test {
         assertEq(usdc.balanceOf(address(this)) - balanceBefore, underlyingToDeploy);
     }
 
-    function test_finshRebalance(uint256 deployedAssets) external {
-        (address treasury, , , Bps performanceFeeBps) = liquidityHub.getFees();
-
+    function test_finshRebalance(uint256 deployedUnderlying) external {
         uint256 deployedUnderlyingBefore = 1000 * 1e6;
-        uint256 deployedAssetsBefore = 1000 * 1e18;
-        vm.assume(deployedAssets < 2 * deployedAssetsBefore);
-        vm.assume(deployedAssets > deployedAssetsBefore / 2);
+        uint256 deployedAssetsBefore = deployedUnderlyingBefore * 1e12;
+
+        vm.assume(deployedUnderlying < 2 * deployedUnderlyingBefore);
+        vm.assume(deployedUnderlying > deployedUnderlyingBefore / 2);
+        vm.assume(deployedUnderlying > deployedUnderlyingBefore / 2);
+
+        (address treasury, , , Bps performanceFeeBps) = liquidityHub.getFees();
+        uint256 deployedAssets = deployedUnderlying * 1e12;
 
         deal(address(usdc), address(liquidityHub), 2 * deployedUnderlyingBefore);
         deal(address(qusd), address(squsd), 2 * deployedAssetsBefore);
@@ -192,18 +195,18 @@ contract LiquidityHubTest is Test {
         $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.finishRebalance.selector);
 
         vm.expectEmit();
-        emit ILiquidityHub.RebalanceFinished(deployedAssets);
-        liquidityHub.finishRebalance(deployedAssets);
+        emit ILiquidityHub.RebalanceFinished(deployedUnderlying);
+        liquidityHub.finishRebalance(deployedUnderlying);
 
-        if (deployedAssets > deployedAssetsBefore) {
-            uint256 assetsDelta = deployedAssets - deployedAssetsBefore;
+        if (deployedUnderlying > deployedUnderlyingBefore) {
+            uint256 underlyingDelta = deployedUnderlying - deployedUnderlyingBefore;
             assertEq(
                 qusd.balanceOf(address(squsd)) - assetsBefore,
-                assetsDelta - (assetsDelta * Bps.unwrap(performanceFeeBps)) / 10_000
+                (underlyingDelta - (underlyingDelta * Bps.unwrap(performanceFeeBps)) / 10_000) * 1e12
             );
             assertEq(
                 usdc.balanceOf(address(treasury)) - treasuryBalanceBefore,
-                ((assetsDelta / 1e12) * Bps.unwrap(performanceFeeBps)) / 10_000
+                (underlyingDelta * Bps.unwrap(performanceFeeBps)) / 10_000
             );
         } else {
             assertEq(assetsBefore - qusd.balanceOf(address(squsd)), deployedAssetsBefore - deployedAssets);

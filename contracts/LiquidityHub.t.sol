@@ -125,7 +125,7 @@ contract LiquidityHubTest is Test {
 
         assertEq(redeem.recipient, user);
         assertEq(redeem.assetAmount, requestAmount);
-        assertEq(redeem.isProcessed, false);
+        assertEq(redeem.isClaimed, false);
         assertEq(redeem.cumAssetAmount, requestAmount);
 
         uint256 redeem2Amount = qusd.balanceOf(address(this));
@@ -148,16 +148,16 @@ contract LiquidityHubTest is Test {
         uint256 redeemId = liquidityHub.requestRedeem(user, qusd.balanceOf(address(this)));
 
         // Should revert before setMaxRedeemableId call
-        vm.expectRevert(ILiquidityHub.RedeemRequestNotReady.selector);
-        liquidityHub.finishRedeem(redeemId);
+        vm.expectRevert(ILiquidityHub.RedeemNotProcessed.selector);
+        liquidityHub.claimRedeem(redeemId);
 
         $.accessManager.grantAccess(address(liquidityHub), address(this), LiquidityHub.processRedeems.selector);
         liquidityHub.processRedeems(redeemId);
         uint256 balanceBefore = usdc.balanceOf(user);
-        liquidityHub.finishRedeem(redeemId);
+        liquidityHub.claimRedeem(redeemId);
         LiquidityHub.RedeemData memory request = liquidityHub.getRedeem(redeemId);
 
-        assertEq(request.isProcessed, true);
+        assertEq(request.isClaimed, true);
         assertEq(usdc.balanceOf(user) - balanceBefore, usdcAmount);
     }
 

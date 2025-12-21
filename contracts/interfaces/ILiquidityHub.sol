@@ -12,7 +12,7 @@ interface ILiquidityHub {
         address recipient;
         uint256 assetAmount;
         uint256 cumAssetAmount;
-        bool isProcessed;
+        bool isClaimed;
     }
 
     // user actions
@@ -23,8 +23,8 @@ interface ILiquidityHub {
         uint256 assetAmount,
         uint256 underlyingAmount
     );
-    event RedeemRequest(uint256 requestId, address indexed redeemer, address indexed recipient, uint256 assetAmount);
-    event Redeem(uint256 requestId, address indexed recipient, uint256 underlyingAmount);
+    event RedeemRequest(uint256 redeemId, address indexed redeemer, address indexed recipient, uint256 assetAmount);
+    event RedeemClaim(uint256 redeemId, address indexed recipient, uint256 underlyingAmount);
 
     // system actions
     event RebalanceStarted(uint256 deployedUnderlying);
@@ -37,8 +37,8 @@ interface ILiquidityHub {
     event InstantRedeemFeeUpdated(Bps oldFee, Bps newFee);
     event PerformanceFeeUpdated(Bps oldFee, Bps newFee);
 
-    error RedeemRequestAlreadyProcessed();
-    error RedeemRequestNotReady();
+    error RedeemAlreadyClaimed();
+    error RedeemNotProcessed();
     error NoAvailableUnderlyingAmount();
 
     // user actions

@@ -111,23 +111,23 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
             recipient: recipient,
             assetAmount: assetAmount,
             cumAssetAmount: assetAmount + $.redeems[redeemId - 1].cumAssetAmount,
-            isProcessed: false
+            isClaimed: false
         });
         emit RedeemRequest(redeemId, msg.sender, recipient, assetAmount);
     }
 
-    function finishRedeem(uint256 redeemId) external {
+    function claimRedeem(uint256 redeemId) external {
         Storage storage $ = _getStorage();
         RedeemData memory redeem = $.redeems[redeemId];
 
-        require(!redeem.isProcessed, RedeemRequestAlreadyProcessed());
-        require(redeemId <= $.lastProcessedRedeemId, RedeemRequestNotReady());
-        $.redeems[redeemId].isProcessed = true;
+        require(!redeem.isClaimed, RedeemAlreadyClaimed());
+        require(redeemId <= $.lastProcessedRedeemId, RedeemNotProcessed());
+        $.redeems[redeemId].isClaimed = true;
         $.processedRedeemAssets += redeem.assetAmount;
 
         uint256 underlyingAmount = redeem.assetAmount.asUnderlyingAmount(_scale);
         underlying.transfer(redeem.recipient, underlyingAmount);
-        emit Redeem(redeemId, redeem.recipient, underlyingAmount);
+        emit RedeemClaim(redeemId, redeem.recipient, underlyingAmount);
     }
 
     function startRebalance(int256 underlyingToDeploy) external restricted {

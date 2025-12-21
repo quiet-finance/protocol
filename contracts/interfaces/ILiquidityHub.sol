@@ -51,7 +51,7 @@ interface ILiquidityHub {
     // system actions
     function startRebalance(int256 underlyingToDeploy) external;
 
-    function finishRebalance(uint256 deployedAssets) external;
+    function finishRebalance(uint256 deployedUnderlying) external;
 
     // getters
     function underlying() external returns (IERC20);

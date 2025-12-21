@@ -1,10 +1,10 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import LiquidityHubModule from "./LiquidityHub.ts";
+import LiquidityHubModule from "./liquidityHub.ts";
 
 const routerModule = buildModule("Router", (m) => {
-    const { LiquidityHub } = m.useModule(LiquidityHubModule);
+    const { liquidityHub } = m.useModule(LiquidityHubModule);
 
-    const router = m.contract("Router", [LiquidityHub]);
+    const router = m.contract("Router", [liquidityHub]);
 
     return { router };
 });

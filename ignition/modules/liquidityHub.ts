@@ -9,8 +9,8 @@ const LiquidityHubModule = buildModule("LiquidityHub", (m) => {
     const { qUSD } = m.useModule(qUSDModule);
     const { sqUSD } = m.useModule(sqUSDModule);
 
-    const LiquidityHubImpl = m.contract("LiquidityHub", [m.getParameter("ASSET"), qUSD, sqUSD], { id: "impl" });
-    const initializeCall = m.encodeFunctionCall(LiquidityHubImpl, "initialize", [
+    const liquidityHubImpl = m.contract("LiquidityHub", [m.getParameter("UNDERLYING"), qUSD, sqUSD], { id: "impl" });
+    const initializeCall = m.encodeFunctionCall(liquidityHubImpl, "initialize", [
         accessManager,
         m.getParameter("TREASURY"),
         10, // 0.1% mint fee
@@ -19,7 +19,7 @@ const LiquidityHubModule = buildModule("LiquidityHub", (m) => {
     ]);
 
     const proxy = m.contract("TransparentUpgradeableProxy", [
-        LiquidityHubImpl,
+        liquidityHubImpl,
         proxyAdminOwner,
         initializeCall,
     ], { id: "auxiliaryProxy" });
@@ -29,19 +29,9 @@ const LiquidityHubModule = buildModule("LiquidityHub", (m) => {
         "newAdmin",
     );
     const proxyAdmin = m.contractAt("ProxyAdmin", proxyAdminAddress, { id: "proxyAdmin" });
-    const LiquidityHub = m.contractAt("LiquidityHub", proxy, { id: "proxy" });
+    const liquidityHub = m.contractAt("LiquidityHub", proxy, { id: "proxy" });
 
-    m.call(accessManager, "grantRole", [ROLES.QUSD_MINTER, LiquidityHub, 0])
-    m.call(accessManager, "setTargetFunctionRole", [
-        qUSD,
-        [
-            "0x40c10f19", // mint(address,uint256)
-            "0x9dc29fac", // burn(address,uint256)
-        ],
-        ROLES.QUSD_MINTER
-    ])
-
-    return { LiquidityHub, proxyAdmin };
+    return { liquidityHub, proxyAdmin };
 });
 
 

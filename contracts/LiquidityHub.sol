@@ -211,7 +211,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         Storage storage $ = _getStorage();
 
         uint256 underlyingBalance = underlying.balanceOf(address(this));
-        uint256 lockedAssets = $.redeems[$.lastRedeemId].cumAssetAmount - $.processedRedeemAssets;
+        uint256 lockedAssets = $.redeems[$.lastProcessedRedeemId].cumAssetAmount - $.processedRedeemAssets;
         require(
             underlyingBalance.asAssetAmount(_scale) - lockedAssets >= underlyingAmount.asAssetAmount(_scale),
             NoAvailableUnderlyingAmount()

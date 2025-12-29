@@ -29,7 +29,7 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
 
         uint256 lastRedeemId;
         uint256 lastProcessedRedeemId;
-        uint256 processedRedeemAssets;
+        uint256 processedRedeemUnderlying;
         mapping(uint256 => RedeemData) redeems;
     }
 
@@ -105,12 +105,12 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         Storage storage $ = _getStorage();
 
         asset.burn(msg.sender, assetAmount);
-
+        uint256 underlyingAmount = assetAmount.asUnderlyingAmount(_scale);
         redeemId = ++$.lastRedeemId;
         $.redeems[redeemId] = RedeemData({
             recipient: recipient,
-            assetAmount: assetAmount,
-            cumAssetAmount: assetAmount + $.redeems[redeemId - 1].cumAssetAmount,
+            underlyingAmount: underlyingAmount,
+            cumUnderylingAmount: underlyingAmount + $.redeems[redeemId - 1].cumUnderylingAmount,
             isClaimed: false
         });
         emit RedeemRequest(redeemId, msg.sender, recipient, assetAmount);
@@ -123,9 +123,9 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         require(!redeem.isClaimed, RedeemAlreadyClaimed());
         require(redeemId <= $.lastProcessedRedeemId, RedeemNotProcessed());
         $.redeems[redeemId].isClaimed = true;
-        $.processedRedeemAssets += redeem.assetAmount;
+        $.processedRedeemUnderlying += redeem.underlyingAmount;
 
-        uint256 underlyingAmount = redeem.assetAmount.asUnderlyingAmount(_scale);
+        uint256 underlyingAmount = redeem.underlyingAmount;
         underlying.transfer(redeem.recipient, underlyingAmount);
         emit RedeemClaim(redeemId, redeem.recipient, underlyingAmount);
     }
@@ -207,15 +207,17 @@ contract LiquidityHub is AccessManagedUpgradeable, ILiquidityHub {
         return _getStorage().redeems[redeemId];
     }
 
-    function _checkIfUnderlyingAvailable(uint256 underlyingAmount) internal view {
+    function getAvailableUnderlyingAmount() public view returns (uint256) {
         Storage storage $ = _getStorage();
 
         uint256 underlyingBalance = underlying.balanceOf(address(this));
-        uint256 lockedAssets = $.redeems[$.lastProcessedRedeemId].cumAssetAmount - $.processedRedeemAssets;
-        require(
-            underlyingBalance.asAssetAmount(_scale) - lockedAssets >= underlyingAmount.asAssetAmount(_scale),
-            NoAvailableUnderlyingAmount()
-        );
+        uint256 lockedUnderlying = $.redeems[$.lastProcessedRedeemId].cumUnderylingAmount - $.processedRedeemUnderlying;
+
+        return underlyingBalance - lockedUnderlying;
+    }
+
+    function _checkIfUnderlyingAvailable(uint256 underlyingAmount) internal view {
+        require(underlyingAmount <= getAvailableUnderlyingAmount(), NoAvailableUnderlyingAmount());
     }
 
     function _getStorage() private pure returns (Storage storage $) {

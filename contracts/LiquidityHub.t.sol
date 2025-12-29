@@ -124,16 +124,16 @@ contract LiquidityHubTest is Test {
         LiquidityHub.RedeemData memory redeem = liquidityHub.getRedeem(requestId);
 
         assertEq(redeem.recipient, user);
-        assertEq(redeem.assetAmount, requestAmount);
+        assertEq(redeem.underlyingAmount, requestAmount / 1e12);
         assertEq(redeem.isClaimed, false);
-        assertEq(redeem.cumAssetAmount, requestAmount);
+        assertEq(redeem.cumUnderylingAmount, requestAmount / 1e12);
 
         uint256 redeem2Amount = qusd.balanceOf(address(this));
         LiquidityHub.RedeemData memory redeem2 = liquidityHub.getRedeem(
             liquidityHub.requestRedeem(user, redeem2Amount)
         );
-        assertEq(redeem2.assetAmount, redeem2Amount);
-        assertEq(redeem2.cumAssetAmount, requestAmount + redeem2Amount);
+        assertEq(redeem2.underlyingAmount, redeem2Amount / 1e12);
+        assertEq(redeem2.cumUnderylingAmount, (requestAmount + redeem2Amount) / 1e12);
 
         assertEq(qusd.balanceOf(address(this)), 0, "LiquidityHub should burn qUSD");
     }

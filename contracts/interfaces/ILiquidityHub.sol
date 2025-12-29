@@ -10,8 +10,8 @@ import {Bps} from "../libraries/BpsMath.sol";
 interface ILiquidityHub {
     struct RedeemData {
         address recipient;
-        uint256 assetAmount;
-        uint256 cumAssetAmount;
+        uint256 underlyingAmount;
+        uint256 cumUnderylingAmount;
         bool isClaimed;
     }
 
@@ -54,9 +54,9 @@ interface ILiquidityHub {
     function finishRebalance(uint256 deployedUnderlying) external;
 
     // getters
-    function underlying() external returns (IERC20);
+    function underlying() external view returns (IERC20);
 
-    function asset() external returns (IMintableERC20);
+    function asset() external view returns (IMintableERC20);
 
-    function vault() external returns (IERC4626);
+    function vault() external view returns (IERC4626);
 }

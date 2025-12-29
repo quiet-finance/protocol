@@ -1,5 +1,5 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import accessManagerModule, { ROLES } from "./accessManager.ts";
+import accessManagerModule from "./accessManager.ts";
 import qUSDModule from "./qUSD.ts";
 import sqUSDModule from "./sqUSD.ts";
 

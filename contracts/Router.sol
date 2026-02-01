@@ -39,7 +39,7 @@ contract Router {
 
     function deposit(uint256 amountIn, bool stake, PermitData calldata permit) external {
         if (permit.deadline != 0)
-            IERC20Permit(address(asset)).permit(
+            IERC20Permit(address(underlying)).permit(
                 msg.sender,
                 address(this),
                 amountIn,
